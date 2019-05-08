@@ -179,7 +179,8 @@ namespace TankClient
             //если вражеских танков на карте нет, прекращаем игру/рассчёт ???
             if (AllEnemies.Count() == 0)
             {
-                endBattle = true;
+                return false;
+                //endBattle = true;
             }
 
             int[,] ShortWay;
@@ -193,8 +194,12 @@ namespace TankClient
                 //находим кратчайший путь
                 ShortWay = FindShortestWay();
 
+                if (!StopMove(request))
+                {
+                    Move(request);
+                }
 
-                //текущую позицию танка помещаем единицей
+                //текущую позицию танка помечаем единицей
                 CurrentPosition = new Vector3(request.Tank.Rectangle.LeftCorner.TopInt - 2, request.Tank.Rectangle.LeftCorner.LeftInt - 2, 0);
                 ShortWay[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 1;
 
@@ -257,14 +262,12 @@ namespace TankClient
             }
 
             //помечаем координаты цели на карте
-            MarkedMap[ClosestEnemy.Rectangle.LeftCorner.TopInt - 2, ClosestEnemy.Rectangle.LeftCorner.LeftInt - 2] = 0;
+            MarkedMap[ClosestEnemy.Rectangle.LeftCorner.TopInt - 1, ClosestEnemy.Rectangle.LeftCorner.LeftInt - 1] = 0;
             while (add == true)
             {
-                add = false;
-
-                for (var i = 1; i < X - 1; i++)
+                for (var i = 0; i < X; i++)
                 {
-                    for (var j = 1; j < Y - 1; j++)
+                    for (var j = 0; j < Y; j++)
                     {
                         //если нынешняя позиция имеет "флаг" Step
                         if (MarkedMap[i, j] == Step)
@@ -297,8 +300,6 @@ namespace TankClient
                 }
 
                 Step++;
-
-                add = true;
 
                 //если текущее местоположение отмечено как "непустое"
                 if (MarkedMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] > 0)
@@ -344,14 +345,14 @@ namespace TankClient
             return true;
         }
 
-        public bool StopMove(int TargetX, int TargetY)
+        public bool StopMove(ServerRequest request)
         {
             bool move = false;
             for (var i = (int)CurrentPosition.X - 1; i <= (int)CurrentPosition.X + 1; i++)
             {
                 for (var j = (int)CurrentPosition.Y + 1; j >= (int)CurrentPosition.Y - 1; j--)
                 {
-                    if (i == TargetX && j == TargetY)
+                    if (i == ClosestEnemy.Rectangle.LeftCorner.LeftInt-2 && j == ClosestEnemy.Rectangle.LeftCorner.TopInt - 2)
                     {
                         move = true;
                     }
