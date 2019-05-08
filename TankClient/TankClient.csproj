@@ -130,8 +130,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Spectator.cs" />
-    <Compile Include="BattleField.cs" />
-    <Compile Include="Bot.cs" />
     <Compile Include="TestClient.cs" />
     <Compile Include="WebSocketProxy.cs" />
   </ItemGroup>

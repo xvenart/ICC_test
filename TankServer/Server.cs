@@ -24,7 +24,6 @@ namespace TankServer
         protected readonly uint _spectatorUpdateMs;
         protected readonly uint _botUpdateMs;
 
-        //123
         public readonly Map Map;
         public Dictionary<IWebSocketConnection, ClientInfo> Clients;
 
