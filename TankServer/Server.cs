@@ -41,7 +41,6 @@ namespace TankServer
 
             _random = new Random();
             _logger = LogManager.GetCurrentClassLogger();
-
             //FleckLog.Level = LogLevel.Debug;
 
             _socketServer = new WebSocketServer($"ws://0.0.0.0:{port}");
@@ -608,6 +607,7 @@ namespace TankServer
                                                 if (isFrag)
                                                 {
                                                     sourceTank.Score += 50;
+                                                    _logger.Info($"{tankIntersectedObject.Nickname} was killed by {sourceTank.Nickname}");
                                                 }
                                             }
                                         }

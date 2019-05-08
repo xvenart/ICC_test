@@ -22,11 +22,11 @@ namespace TankGuiObserver
             Application.SetCompatibleTextRenderingDefault(false);
             //Application.Run(new MainForm());
 
-            var renderTarget = RenderTarget.Create();     //создаём "цель вывода"
-            renderTarget.Window.Title = $"TankGuiObserver {Application.ProductVersion}";            //название окна
-            renderTarget.Window.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);      //иконка
-            renderTarget.Window.SurfaceLayout = new SurfaceLayout(true, false, true);               //"поверхность" слоёв ~ мб наложение слоёв
-            renderTarget.Window.SurfaceStyle = SurfaceStyle.Fullscreen;                             //стиль наложения
+            var renderTarget = RenderTarget.Create();
+            renderTarget.Window.Title = $"TankGuiObserver {Application.ProductVersion}";
+            renderTarget.Window.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            renderTarget.Window.SurfaceLayout = new SurfaceLayout(true, false, true);
+            renderTarget.Window.SurfaceStyle = SurfaceStyle.Fullscreen;
 
             SGL.Initialize(new Configurator(
                 new BackBuffer(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height),
