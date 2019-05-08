@@ -8,6 +8,7 @@ using TankCommon;
 using TankCommon.Enum;
 using TankCommon.Objects;
 using NLog;
+using System.Net;
 
 namespace TankServer
 {
@@ -144,6 +145,16 @@ namespace TankServer
                                         var bot = AddTankBot(nickname, tag);
                                         clientInfo.InteractObject = bot;
                                     }
+
+                                    /*var _webRequest = WebRequest.Create();
+                                    _webRequest.Credentials = CredentialCache.DefaultCredentials;
+
+                                    var _webResponse = _webRequest.GetResponse();
+                                    Console.WriteLine(((HttpWebResponse)_webResponse).StatusDescription);
+
+                                    var dataStream = _webResponse.GetResponseStream();
+
+                                    _webResponse.Close();*/
                                 }
                             }
                         }
