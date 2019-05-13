@@ -32,8 +32,7 @@ namespace ICC_Tank
             Console.WriteLine($"Сгенерирована карта");
 
             var port = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["port"], 2000);
-            var maxBotsCount = (uint)5;
-            //var maxBotsCount = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["maxBotsCount"], 1000);
+            var maxBotsCount = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["maxBotsCount"], 1000);
             var coreUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["coreUpdateMs"], 100);
             var spectatorUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["spectatorUpdateMs"], 100);
             var botUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["botUpdateMs"], 250);

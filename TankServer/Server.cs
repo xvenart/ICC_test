@@ -146,15 +146,17 @@ namespace TankServer
                                         clientInfo.InteractObject = bot;
                                     }
 
-                                    var _webRequest = WebRequest.Create($"ws://0.0.0.0:{port}");
-                                    _webRequest.Credentials = CredentialCache.DefaultCredentials;
+                                    /*var _webRequest = WebRequest.Create($"ws://0.0.0.0:{port}");
+                                    _webRequest.Method = "POST";
+                                    var data = "sName=Hello!";
+                                    _webRequest.ContentType = "application/";
 
                                     var _webResponse = _webRequest.GetResponse();
                                     Console.WriteLine(((HttpWebResponse)_webResponse).StatusDescription);
 
                                     var dataStream = _webResponse.GetResponseStream();
 
-                                    _webResponse.Close();
+                                    _webResponse.Close();*/
                                 }
                             }
                         }
