@@ -11,8 +11,6 @@ namespace TankClient
 {
     public class TestClient : IClientBot
     {
-        public Map _map;
-
         public int[,] LocationMap;
         public int X;
         public int Y;
@@ -23,6 +21,7 @@ namespace TankClient
         public BaseInteractObject ClosestEnemy;
         public IEnumerable<BaseInteractObject> AllEnemies;
 
+        public bool ready;
         public bool endBattle = false;
 
         public void Start(ServerRequest request)
@@ -42,7 +41,7 @@ namespace TankClient
             {
                 for (var j = 0; j < Y; j++)
                 {
-                    if (Cells[i, j] == CellMapType.Wall /*|| Cells[i, j] == CellMapType.Water*/ || Cells[i, j] == CellMapType.DestructiveWall)
+                    if (Cells[i, j] == CellMapType.Wall || Cells[i, j] == CellMapType.DestructiveWall)
                     {
                         LocationMap[i, j] = -1;
                     }
@@ -52,36 +51,61 @@ namespace TankClient
                     }
                 }
             }
+
+            AllEnemies = request.Map.InteractObjects.Where(x => x is TankObject);
+
+            ClosestEnemy = FindClosestEnemy();
         }
 
         public ServerResponse Client(int msgCount, ServerRequest request)
         {
-            if (request.Map.Cells != null)
-            {
-                _map = request.Map;
-            }
-            else
+            ready = false;
+
+            if (request.Map.Cells == null)
             {
                 return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
             }
 
             Start(request);
 
-            Move(request);
-
-            FindStep();
-
-            if (isInLine())
+            if (request.Map.InteractObjects.Where(x => x is TankObject && x.Rectangle.LeftCorner.LeftInt != CurrentPosition.X && x.Rectangle.LeftCorner.TopInt != CurrentPosition.Y) == null)
             {
-                //return new ServerResponse { ClientCommand = SwitchDirection(ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt) };
-                return new ServerResponse { ClientCommand = ClientCommandType.Fire };
+                return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
             }
-            /*else
+            else
             {
-                return new ServerResponse { ClientCommand = ClientCommandType.Fire };
-            }*/
+                ready = true;
+            }
+
+            if (ready)
+            {
+                if (isInLineX() || isInLineY())
+                {
+                    //if ()
+                    return new ServerResponse { ClientCommand = ClientCommandType.Fire };
+                }
+
+                if (!isInLineX())
+                {
+                    return new ServerResponse { ClientCommand = FindStep() };
+                }
+
+                //if (!endBattle)
+                //{
+                    return new ServerResponse { ClientCommand = Move(request) };
+                //}
+            }
 
             return new ServerResponse { ClientCommand = ClientCommandType.Go };
+        }
+
+        public ClientCommandType isNeedSwitch(int _X, int _Y)
+        {
+            if (isInLineX() || isInLineY())
+            {
+                return SwitchDirection(_X, _Y);
+            }
+            return ClientCommandType.Go;
         }
 
         public ClientCommandType SwitchDirection(int _X, int _Y)
@@ -104,13 +128,18 @@ namespace TankClient
             }
             else
             {
-                return ClientCommandType.Stop;
+                return ClientCommandType.Go;
             }
         }
 
-        public bool isInLine()
+        public bool isInLineX()
         {
-            return (CurrentPosition.X == ClosestEnemy.Rectangle.LeftCorner.LeftInt || CurrentPosition.Y == ClosestEnemy.Rectangle.LeftCorner.TopInt) ? true : false;
+            return (CurrentPosition.X == ClosestEnemy.Rectangle.LeftCorner.LeftInt) ? true : false;
+        }
+
+        public bool isInLineY()
+        {
+            return (CurrentPosition.Y == ClosestEnemy.Rectangle.LeftCorner.TopInt) ? true : false;
         }
 
         public ClientCommandType Move(ServerRequest request)
@@ -121,10 +150,18 @@ namespace TankClient
             AllEnemies = AllObjectsOnMap.Where(p => p is TankObject);
 
             //если вражеских танков на карте нет, прекращаем игру/рассчёт ???
-            if (AllEnemies.Count() == 0)
+            if (AllEnemies.Count() == 0 || AllEnemies == null)
             {
                 endBattle = true;
             }
+
+            var docPath = Environment.CurrentDirectory;
+            var sw = new StreamWriter(Path.Combine(docPath, "InteractObjects.txt"));
+            foreach (var i in request.Map.InteractObjects)
+            {
+                sw.WriteLine($"{i.Rectangle.LeftCorner.LeftInt}, {i.Rectangle.LeftCorner.TopInt}");
+            }
+            sw.Close();
 
             //если игра не окончена
             if (!endBattle)
@@ -137,9 +174,9 @@ namespace TankClient
 
                 WriteFiles(ShortWay);
 
-                //текущую позицию танка помещаем единицей
+                //текущую позицию танка помечаем двойкой
                 CurrentPosition = new Vector3(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt, 0);
-                LocationMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 1;
+                LocationMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 2;
 
                 if (CurrentPosition != LastPosition)
                 {
@@ -174,7 +211,10 @@ namespace TankClient
             var closest = Neightbors.OrderBy(x => x.Z).ToList();
 
             LocationMap[(int)closest[0].X, (int)closest[0].Y] = 2;
-            SwitchDirection((int)closest[0].X, (int)closest[0].Y);
+            if (CurrentPosition.X != (int)closest[0].X || CurrentPosition.Y != (int)closest[0].Y)
+            {
+                return SwitchDirection((int)closest[0].X, (int)closest[0].Y);
+            }
 
             return ClientCommandType.Go;
         }
@@ -212,9 +252,9 @@ namespace TankClient
             //заполняем словарь
             foreach (var i in AllEnemies)
             {
-                if (i is TankObject)
+                if (i is TankObject && i.Rectangle.LeftCorner.LeftInt != CurrentPosition.X && i.Rectangle.LeftCorner.TopInt != CurrentPosition.Y)
                 {
-                    AllDistance.Add(i, Math.Pow((int)CurrentPosition.X - i.Rectangle.LeftCorner.TopInt, 2) + Math.Pow((int)CurrentPosition.Y - i.Rectangle.LeftCorner.LeftInt, 2));
+                    AllDistance.Add(i, Math.Pow((int)CurrentPosition.X - i.Rectangle.LeftCorner.LeftInt, 2) + Math.Pow((int)CurrentPosition.Y - i.Rectangle.LeftCorner.TopInt, 2));
                 }
             }
 
@@ -246,7 +286,7 @@ namespace TankClient
             }
 
             //помечаем координаты цели на карте
-            MarkedMap[ClosestEnemy.Rectangle.LeftCorner.TopInt, ClosestEnemy.Rectangle.LeftCorner.LeftInt] = 0;
+            MarkedMap[ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt] = 0;
             while (add == true)
             {
                 for (var i = 1; i < X-1; i++)
@@ -303,21 +343,5 @@ namespace TankClient
             return MarkedMap;
         }
 
-        public bool StopMove(ServerRequest request)
-        {
-            bool move = false;
-            for (var i = (int)CurrentPosition.X - 1; i <= (int)CurrentPosition.X + 1; i++)
-            {
-                for (var j = (int)CurrentPosition.Y + 1; j >= (int)CurrentPosition.Y - 1; j--)
-                {
-                    if (i == ClosestEnemy.Rectangle.LeftCorner.LeftInt && j == ClosestEnemy.Rectangle.LeftCorner.TopInt)
-                    {
-                        move = true;
-                    }
-                }
-            }
-
-            return move;
-        }
     }
 }

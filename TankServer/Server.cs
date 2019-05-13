@@ -146,7 +146,7 @@ namespace TankServer
                                         clientInfo.InteractObject = bot;
                                     }
 
-                                    /*var _webRequest = WebRequest.Create();
+                                    var _webRequest = WebRequest.Create($"ws://0.0.0.0:{port}");
                                     _webRequest.Credentials = CredentialCache.DefaultCredentials;
 
                                     var _webResponse = _webRequest.GetResponse();
@@ -154,7 +154,7 @@ namespace TankServer
 
                                     var dataStream = _webResponse.GetResponseStream();
 
-                                    _webResponse.Close();*/
+                                    _webResponse.Close();
                                 }
                             }
                         }

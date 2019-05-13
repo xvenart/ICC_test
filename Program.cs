@@ -28,7 +28,7 @@ namespace ICC_Tank
 
         static void Main(string[] args)
         {
-            var map = MapManager.LoadMap(10,'с', 20, 50);
+            var map = MapManager.LoadMap(15,'с', 20, 50);
             Console.WriteLine($"Сгенерирована карта");
 
             var port = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["port"], 2000);
