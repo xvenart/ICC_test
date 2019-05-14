@@ -41,7 +41,7 @@ namespace TankClient
             {
                 for (var j = 0; j < request.Map.Cells.GetLength(1); j++)
                 {
-                    if (request.Map.Cells[i, j] == CellMapType.Wall || request.Map.Cells[i, j] == CellMapType.DestructiveWall)
+                    if (request.Map.Cells[i, j] == CellMapType.Wall || request.Map.Cells[i, j] == CellMapType.DestructiveWall || request.Map.Cells[i, j] == CellMapType.Water)
                     {
                         LocationMap[i, j] = -1;
                     }
@@ -85,8 +85,12 @@ namespace TankClient
             {
                 if (ClosestEnemy is UpgradeInteractObject)
                 {
-                    Update(request);
                     return new ServerResponse { ClientCommand = GoToTarget(request) };
+                }
+
+                if (ClosestEnemy is TankObject)
+                {
+                    return new ServerResponse { ClientCommand = ClientCommandType.Fire };
                 }
                 /*else
                 {
@@ -130,7 +134,7 @@ namespace TankClient
 
             if (_tank.LeftInt > tX && request.Tank.Direction != DirectionType.Left)
             {
-                request.Tank.Direction = DirectionType.Left;
+                //request.Tank.Direction = DirectionType.Left;
                 return ClientCommandType.TurnLeft;
             }
             else if (_tank.LeftInt > tX && request.Tank.Direction == DirectionType.Left)
@@ -139,7 +143,7 @@ namespace TankClient
             }
             else if (_tank.LeftInt < tX && request.Tank.Direction != DirectionType.Right)
             {
-                request.Tank.Direction = DirectionType.Right;
+                //request.Tank.Direction = DirectionType.Right;
                 return ClientCommandType.TurnRight;
             }
             else if (_tank.LeftInt < tX && request.Tank.Direction == DirectionType.Right)
@@ -148,7 +152,7 @@ namespace TankClient
             }
             else if (_tank.TopInt > tY && request.Tank.Direction != DirectionType.Up)
             {
-                request.Tank.Direction = DirectionType.Up;
+                //request.Tank.Direction = DirectionType.Up;
                 return ClientCommandType.TurnUp;
             }
             else if (_tank.TopInt > tY && request.Tank.Direction == DirectionType.Up)
@@ -157,7 +161,7 @@ namespace TankClient
             }
             else if (_tank.TopInt < tY && request.Tank.Direction != DirectionType.Down)
             {
-                request.Tank.Direction = DirectionType.Down;
+                //request.Tank.Direction = DirectionType.Down;
                 return ClientCommandType.TurnDown;
             }
             else if (_tank.TopInt < tY && request.Tank.Direction == DirectionType.Down)
@@ -165,11 +169,15 @@ namespace TankClient
                 return ClientCommandType.Go;
             }
 
-            LocationMap[_tank.LeftInt, _tank.TopInt] = 0;
             CurrentPosition = new Vector2(_tank.LeftInt, _tank.TopInt);
-            LastPosition = CurrentPosition;
             LocationMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 1;
 
+            if (CurrentPosition != LastPosition)
+            {
+                LocationMap[(int)LastPosition.X, (int)LastPosition.Y] = 0;
+                LastPosition = CurrentPosition;
+            }
+            
             return ClientCommandType.Go;
         }
 
