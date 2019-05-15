@@ -138,55 +138,41 @@ namespace TankClient
             }
 
 
-            if (_tank.LeftInt > tX && _tank.TopInt == tY && request.Tank.Direction == DirectionType.Left)
-            {
-                request.Tank.Direction = DirectionType.Down;
-                return ClientCommandType.Go;
-            }
-            else if (_tank.LeftInt == tX && _tank.TopInt > tY && request.Tank.Direction == DirectionType.Up)
+            if (_tank.LeftInt > tX && request.Tank.Direction != DirectionType.Left)
             {
                 request.Tank.Direction = DirectionType.Left;
-                return ClientCommandType.Go;
-            }
-            else if (_tank.LeftInt < tX && _tank.TopInt == tY && request.Tank.Direction == DirectionType.Right)
-            {
-                request.Tank.Direction = DirectionType.Up;
-                return ClientCommandType.Go;
-            }
-            else if (_tank.LeftInt == tX && _tank.TopInt < tY && request.Tank.Direction == DirectionType.Down)
-            {
-                request.Tank.Direction = DirectionType.Right;
-                return ClientCommandType.Go;
-            }
-            /*else if (_tank.LeftInt > tX && _tank.TopInt > tY && request.Tank.Direction == DirectionType.Left)
-            {
-                request.Tank.Direction = DirectionType.Down;
-                return ClientCommandType.Go;
-            }
-            else if (_tank.LeftInt < tX && _tank.TopInt < tY && request.Tank.Direction == DirectionType.Up)
-            {
-                request.Tank.Direction = DirectionType.Up;
-                return ClientCommandType.Go;
-            }*/
-            else if (_tank.LeftInt > tX && request.Tank.Direction != DirectionType.Left)
-            {
-                //request.Tank.Direction = DirectionType.Left;
                 return ClientCommandType.TurnLeft;
+            }
+            else if (_tank.LeftInt > tX && request.Tank.Direction == DirectionType.Left)
+            {
+                return ClientCommandType.Go;
             }
             else if (_tank.TopInt > tY && request.Tank.Direction != DirectionType.Up)
             {
-                //request.Tank.Direction = DirectionType.Up;
+                request.Tank.Direction = DirectionType.Up;
                 return ClientCommandType.TurnUp;
+            }
+            else if (_tank.TopInt > tY && request.Tank.Direction == DirectionType.Up)
+            {
+                return ClientCommandType.Go;
             }
             else if (_tank.LeftInt < tX && request.Tank.Direction != DirectionType.Right)
             {
-                //request.Tank.Direction = DirectionType.Right;
+                request.Tank.Direction = DirectionType.Right;
                 return ClientCommandType.TurnRight;
+            }
+            else if (_tank.LeftInt < tX && request.Tank.Direction == DirectionType.Right)
+            {
+                return ClientCommandType.Go;
             }
             else if (_tank.TopInt < tY && request.Tank.Direction != DirectionType.Down)
             {
-                //request.Tank.Direction = DirectionType.Down;
+                request.Tank.Direction = DirectionType.Down;
                 return ClientCommandType.TurnDown;
+            }
+            else if (_tank.TopInt < tY && request.Tank.Direction == DirectionType.Down)
+            {
+                return ClientCommandType.Go;
             }
 
 
