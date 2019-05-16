@@ -53,6 +53,8 @@ namespace TankClient
             }
 
             AllEnemies = request.Map.InteractObjects.Where(x => (x is TankObject && x.Id != request.Tank.Id) || x is UpgradeInteractObject);
+            //AllEnemies = request.Map.InteractObjects.Where(x => x is TankObject || x is UpgradeInteractObject);
+            //AllEnemies = request.Map.InteractObjects;
 
             endBattle = false;
         }
@@ -88,22 +90,15 @@ namespace TankClient
                     return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
                 }
 
-                if (ClosestEnemy is UpgradeInteractObject)
+                if (ClosestEnemy != null)
                 {
                     return new ServerResponse { ClientCommand = GoToTarget(request) };
                 }
 
-                if (ClosestEnemy is TankObject)
+                if (GetDistanse(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt, ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt) < 10)
                 {
                     return new ServerResponse { ClientCommand = ClientCommandType.Fire };
                 }
-                /*else
-                {
-                    if (Math.Abs(request.Tank.Rectangle.LeftCorner.Left - ClosestEnemy.Rectangle.LeftCorner.Left) < 10 || Math.Abs(request.Tank.Rectangle.LeftCorner.Top - ClosestEnemy.Rectangle.LeftCorner.Top) < 10)
-                    {
-                        return new ServerResponse { ClientCommand = ClientCommandType.Fire };
-                    }
-                }*/
             }
 
             return new ServerResponse { ClientCommand = ClientCommandType.Stop };
@@ -140,7 +135,7 @@ namespace TankClient
 
             if (_tank.LeftInt > tX && request.Tank.Direction != DirectionType.Left)
             {
-                request.Tank.Direction = DirectionType.Left;
+                //request.Tank.Direction = DirectionType.Left;
                 return ClientCommandType.TurnLeft;
             }
             else if (_tank.LeftInt > tX && request.Tank.Direction == DirectionType.Left)
@@ -149,7 +144,7 @@ namespace TankClient
             }
             else if (_tank.TopInt > tY && request.Tank.Direction != DirectionType.Up)
             {
-                request.Tank.Direction = DirectionType.Up;
+                //request.Tank.Direction = DirectionType.Up;
                 return ClientCommandType.TurnUp;
             }
             else if (_tank.TopInt > tY && request.Tank.Direction == DirectionType.Up)
@@ -158,7 +153,7 @@ namespace TankClient
             }
             else if (_tank.LeftInt < tX && request.Tank.Direction != DirectionType.Right)
             {
-                request.Tank.Direction = DirectionType.Right;
+                //request.Tank.Direction = DirectionType.Right;
                 return ClientCommandType.TurnRight;
             }
             else if (_tank.LeftInt < tX && request.Tank.Direction == DirectionType.Right)
@@ -167,7 +162,7 @@ namespace TankClient
             }
             else if (_tank.TopInt < tY && request.Tank.Direction != DirectionType.Down)
             {
-                request.Tank.Direction = DirectionType.Down;
+                //request.Tank.Direction = DirectionType.Down;
                 return ClientCommandType.TurnDown;
             }
             else if (_tank.TopInt < tY && request.Tank.Direction == DirectionType.Down)
@@ -290,6 +285,7 @@ namespace TankClient
                 AllDistance.Add(i, GetDistanse(Tank.LeftInt, Tank.TopInt, i.Rectangle.LeftCorner.LeftInt, i.Rectangle.LeftCorner.TopInt));
             }
 
+            //return (AllDistance.Count > 1) ? AllDistance.OrderBy(x => x.Value).First().Key : null;
             return AllDistance.OrderBy(x => x.Value).First().Key;
         }
 
