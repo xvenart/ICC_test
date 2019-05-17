@@ -22,7 +22,8 @@ namespace TankClient
         public Vector2 LastPosition;
 
         public BaseInteractObject ClosestEnemy;
-        public IEnumerable<BaseInteractObject> AllEnemies;
+        public List<BaseInteractObject> AllEnemies;
+        //public IEnumerable<BaseInteractObject> AllEnemies;
 
         public bool ready;
         public bool endBattle;
@@ -41,7 +42,7 @@ namespace TankClient
             {
                 for (var j = 0; j < request.Map.Cells.GetLength(1); j++)
                 {
-                    if (request.Map.Cells[i, j] == CellMapType.Wall || request.Map.Cells[i, j] == CellMapType.DestructiveWall || request.Map.Cells[i, j] == CellMapType.Water)
+                    if (request.Map.Cells[i, j] == CellMapType.Wall || request.Map.Cells[i, j] == CellMapType.DestructiveWall)
                     {
                         LocationMap[i, j] = -1;
                     }
@@ -52,9 +53,11 @@ namespace TankClient
                 }
             }
 
-            AllEnemies = request.Map.InteractObjects.Where(x => (x is TankObject && x.Id != request.Tank.Id) || x is UpgradeInteractObject);
-            //AllEnemies = request.Map.InteractObjects.Where(x => x is TankObject || x is UpgradeInteractObject);
-            //AllEnemies = request.Map.InteractObjects;
+            AllEnemies = new List<BaseInteractObject>();
+
+            //AllEnemies.AddRange(request.Map.InteractObjects.Where(x => x.Id != request.Tank.Id));
+
+            ClosestEnemy = new BaseInteractObject();
 
             endBattle = false;
         }
@@ -63,14 +66,23 @@ namespace TankClient
         {
             ready = false;
 
-            Start(request);
+            if (request.Map.Cells != null)
+            {
+                Start(request);
+            }
+            /*else
+            {
+                return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
+            }*/
             
             if (request.Map == null)
             {
                 return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
             }
 
-            if (AllEnemies == null && !AllEnemies.Any())
+            Update(request);
+
+            if (!AllEnemies.Any() || AllEnemies.Count == 0)
             {
                 return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
             }
@@ -81,17 +93,27 @@ namespace TankClient
 
             if (ready)
             {
-                Update(request);
+                //Update(request);
 
                 if (ClosestEnemy == null)
                 {
                     return new ServerResponse { ClientCommand = Walk() };
                 }
 
-                if (GetDistanse(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt, ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt) < 10)
+                if (ClosestEnemy is BaseInteractObject)
+                {
+                    return new ServerResponse { ClientCommand = GoToTarget(request) };
+                }
+
+                if (ClosestEnemy is TankObject)
+                {
+                    return new ServerResponse { ClientCommand = GoToTarget(request) };
+                }
+
+                /*if (GetDistanse(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt, ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt) < 10)
                 {
                     return new ServerResponse { ClientCommand = ClientCommandType.Fire };
-                }
+                }*/
 
                 if (ClosestEnemy != null)
                 {
@@ -134,12 +156,12 @@ namespace TankClient
         {
             var tX = 0;
             var tY = 0;
-            var tank = request.Tank.Rectangle.LeftCorner;
-            for (var i = tank.LeftInt - 1; i <= tank.LeftInt + 1; i++)
+            var Tank = request.Tank.Rectangle.LeftCorner;
+            for (var i = Tank.LeftInt - 1; i <= Tank.LeftInt + 1; i++)
             {
-                for (var j = tank.TopInt + 1; j >= tank.TopInt - 1; j--)
+                for (var j = Tank.TopInt + 1; j >= Tank.TopInt - 1; j--)
                 {
-                    if (LocationMap[i, j] == 2)
+                    if (!(i > Tank.LeftInt && j > Tank.TopInt) || !(i < Tank.LeftInt && j < Tank.TopInt) && (LocationMap[i, j] == 2 && ShortWay[i, j] != -2))
                     {
                         tX = i;
                         tY = j;
@@ -148,42 +170,42 @@ namespace TankClient
                 }
             }
 
+            if (GetDistanse())
 
-            if (tank.LeftInt > tX && request.Tank.Direction != DirectionType.Left)
+            /*if (Math.Abs(Tank.LeftInt - tX) > 3 && request.Tank.Direction != DirectionType.Left)
             {
                 return ClientCommandType.TurnLeft;
             }
-            /*else if (tank.LeftInt > tX && request.Tank.Direction == DirectionType.Left)
+            else if (Math.Abs(Tank.LeftInt - tX) > 3 && request.Tank.Direction == DirectionType.Left)
             {
                 return ClientCommandType.Go;
-            }*/
-            else if (tank.TopInt > tY && request.Tank.Direction != DirectionType.Up)
-            {
-                return ClientCommandType.TurnUp;
             }
-            /*else if (tank.TopInt > tY && request.Tank.Direction == DirectionType.Up)
-            {
-                return ClientCommandType.Go;
-            }*/
-            else if (tank.LeftInt < tX && request.Tank.Direction != DirectionType.Right)
-            {
-                return ClientCommandType.TurnRight;
-            }
-            /*else if (tank.LeftInt < tX && request.Tank.Direction == DirectionType.Right)
-            {
-                return ClientCommandType.Go;
-            }*/
-            else if (tank.TopInt < tY && request.Tank.Direction != DirectionType.Down)
+            else if (Math.Abs(Tank.TopInt - tY) < 3 && request.Tank.Direction != DirectionType.Down)
             {
                 return ClientCommandType.TurnDown;
             }
-            /*else if (tank.TopInt < tY && request.Tank.Direction == DirectionType.Down)
+            else if (Math.Abs(Tank.TopInt - tY) < 3 && request.Tank.Direction == DirectionType.Down)
+            {
+                return ClientCommandType.Go;
+            }
+            else if (Math.Abs(Tank.LeftInt - tX) < 3 && request.Tank.Direction != DirectionType.Right)
+            {
+                return ClientCommandType.TurnRight;
+            }
+            else if (Math.Abs(Tank.LeftInt - tX) < 3 && request.Tank.Direction == DirectionType.Right)
+            {
+                return ClientCommandType.Go;
+            }
+            else if (Math.Abs(Tank.TopInt - tY) > 3 && request.Tank.Direction != DirectionType.Up)
+            {
+                return ClientCommandType.TurnUp;
+            }
+            else if (Math.Abs(Tank.TopInt - tY) > 3 && request.Tank.Direction == DirectionType.Up)
             {
                 return ClientCommandType.Go;
             }*/
 
-
-            CurrentPosition = new Vector2(tank.LeftInt, tank.TopInt);
+            CurrentPosition = new Vector2(Tank.LeftInt, Tank.TopInt);
             LocationMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 1;
 
             if (CurrentPosition != LastPosition)
@@ -200,10 +222,15 @@ namespace TankClient
             //получаем все объекты на карте
             var AllObjectsOnMap = request.Map.InteractObjects;
             //помещаем в переменную только танки
-            AllEnemies = AllObjectsOnMap.Where(x => (x is TankObject && x.Id != request.Tank.Id) || x is UpgradeInteractObject);
+            if (!AllEnemies.Any() && AllEnemies.Count > 0)
+            {
+                AllEnemies.Clear();
+            }
+            //AllEnemies.AddRange(AllObjectsOnMap.Where(x => (x is TankObject && x.Id != request.Tank.Id) || x is UpgradeInteractObject));
+            AllEnemies.AddRange(request.Map.InteractObjects.Where(x => x.Id != request.Tank.Id));
 
             //если вражеских танков на карте нет, прекращаем игру 
-            if (AllEnemies == null)
+            if (!AllEnemies.Any())
             {
                 endBattle = true;
             }
@@ -214,15 +241,18 @@ namespace TankClient
                 //находим ближайшего врага
                 ClosestEnemy = FindClosestEnemy(request);
 
-                //находим кратчайший путь
-                ShortWay = FindShortestWay();
+                if (ClosestEnemy != null)
+                {
+                    //находим кратчайший путь
+                    ShortWay = FindShortestWay(request);
 
-                //текущую позицию танка помечаем единицей
-                LocationMap[request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt] = 1;
+                    //текущую позицию танка помечаем единицей
+                    LocationMap[request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt] = 1;
 
-                FindStep(request);
+                    FindStep(request);
 
-                WriteFiles();
+                    WriteFiles();
+                }
             }
         }
 
@@ -239,12 +269,13 @@ namespace TankClient
             {
                 for (var j = Tank.TopInt + 1; j >= Tank.TopInt - 1; j--)
                 {
-                    if (!(i > Tank.LeftInt && j > Tank.TopInt) || !(i < Tank.LeftInt && j < Tank.TopInt))
+                    if (!(i > Tank.LeftInt && j > Tank.TopInt) || 
+                        !(i < Tank.LeftInt && j < Tank.TopInt || 
+                        !(i > Tank.LeftInt && j < Tank.TopInt) || 
+                        !(i < Tank.LeftInt && j > Tank.TopInt)) && 
+                        ShortWay[i, j] != -2)
                     {
-                        if (ShortWay[i, j] != -2)
-                        {
-                            Neightbors.Add(new Vector3(i, j, (float)GetDistanse(i, j, goTo.X, goTo.Y)));
-                        }
+                        Neightbors.Add(new Vector3(i, j, (float)GetDistanse(i, j, goTo.X, goTo.Y)));
                     }
                 }
             }
@@ -307,7 +338,7 @@ namespace TankClient
             //return AllDistance.OrderBy(x => x.Value).First().Key;
         }
 
-        public int[,] FindShortestWay()
+        public int[,] FindShortestWay(ServerRequest request)
         {
             var add = true;
             var MarkedMap = new int[LocationMap.GetLength(0), LocationMap.GetLength(1)];
@@ -333,7 +364,7 @@ namespace TankClient
 
             //помечаем координаты цели на карте
             MarkedMap[ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt] = 0;
-            while (add == true)
+            while (add)
             {
                 for (var i = 0; i < MarkedMap.GetLength(0); i++)
                 {
@@ -354,14 +385,14 @@ namespace TankClient
                                 MarkedMap[i + 1, j] = Step + 1;
                             }
 
-                            //внизу
-                            if (j + 1 >= 0 && MarkedMap[i, j + 1] != -2 && MarkedMap[i, j + 1] == -1)
+                            //сверху
+                            if (j - 1 >= 0 && MarkedMap[i, j - 1] != -2 && MarkedMap[i, j - 1] == -1)
                             {
                                 MarkedMap[i, j - 1] = Step + 1;
                             }
 
-                            //сверху
-                            if (j - 1 >= 0 && MarkedMap[i, j - 1] != -2 && MarkedMap[i, j - 1] == -1)
+                            //снизу
+                            if (j + 1 >= 0 && MarkedMap[i, j + 1] != -2 && MarkedMap[i, j + 1] == -1)
                             {
                                 MarkedMap[i, j + 1] = Step + 1;
                             }
@@ -373,6 +404,7 @@ namespace TankClient
 
                 //если текущее местоположение отмечено как "непустое"
                 if (MarkedMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] > 0)
+                //if (MarkedMap[request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt] > 0)
                 {
                     //решение найдено
                     add = false;
