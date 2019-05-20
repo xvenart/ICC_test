@@ -1,429 +1,497 @@
 ﻿using System;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using TankCommon;
 using TankCommon.Enum;
 using TankCommon.Objects;
-using System.Collections.Generic;
-using System.Numerics;
+using System.Reflection;
 
 namespace TankClient
 {
-    public class TestClient : IClientBot
+    public class Bot1 : IClientBot
     {
         protected Rectangle rectangle;
         protected Map _map;
-
-        public int[,] LocationMap;
-        public int[,] ShortWay;
-        public int X, Y;
-
-        public Vector2 CurrentPosition;
-        public Vector2 LastPosition;
-
-        public BaseInteractObject ClosestEnemy;
-        public List<BaseInteractObject> AllEnemies;
-        //public IEnumerable<BaseInteractObject> AllEnemies;
-
-        public bool ready;
-        public bool endBattle;
-
-        public void Start(ServerRequest request)
-        {
-            //определение нынешнего положения танка
-            CurrentPosition = new Vector2(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt);
-
-            //определение финишной точки
-            LastPosition = CurrentPosition;
-
-            LocationMap = new int[request.Map.Cells.GetLength(0), request.Map.Cells.GetLength(1)];
-
-            for (var i = 0; i < request.Map.Cells.GetLength(0); i++)
-            {
-                for (var j = 0; j < request.Map.Cells.GetLength(1); j++)
-                {
-                    if (request.Map.Cells[i, j] == CellMapType.Wall || request.Map.Cells[i, j] == CellMapType.DestructiveWall)
-                    {
-                        LocationMap[i, j] = -1;
-                    }
-                    else
-                    {
-                        LocationMap[i, j] = 0;
-                    }
-                }
-            }
-
-            AllEnemies = new List<BaseInteractObject>();
-
-            //AllEnemies.AddRange(request.Map.InteractObjects.Where(x => x.Id != request.Tank.Id));
-
-            ClosestEnemy = new BaseInteractObject();
-
-            endBattle = false;
-        }
+        private delegate ServerResponse Script();
+        private static int stepsBeforeOver = 0;
+        private static  Script delegateScript = Stop;
+        private static Rectangle lastRectangle;
+        public TankSettings settings;
 
         public ServerResponse Client(int msgCount, ServerRequest request)
         {
-            ready = false;
+            if (request.Settings != null)
+            {
+                settings = request.Settings;
+                try
+                {
+                    var docPath = Environment.CurrentDirectory;
+                    var SW = new StreamWriter(docPath + "/config/cfgClient.txt", false, System.Text.Encoding.Default);
+                    SW.Write(settings.GameSpeed + "\n" + settings.BulletSpeed + "\n" + settings.TankSpeed + "\n" + settings.TankDamage);
+                    SW.Close();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
+                }
+            }
 
+            //Если карта существует присвоить локальной карте карту
             if (request.Map.Cells != null)
             {
-                Start(request);
+                _map = request.Map;
+                var translMap = TranslMapForPassfind(_map);
             }
-            /*else
+            //Если в карте ничего нет, то просить обновления карты
+            else if (null == _map)
             {
                 return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
-            }*/
+            }
+
+            //записать в карту все интерактивные объекты
+            _map.InteractObjects = request.Map.InteractObjects;
+
+            var myTank = request.Tank;
+            if (null == myTank)
+            {
+                return new ServerResponse { ClientCommand = ClientCommandType.None };
+            }
+
+            //если размер танка не известен, то узнать
+            if (null == rectangle)
+            {
+                rectangle = myTank.Rectangle;
+            }
+
+            rectangle = myTank.Rectangle;
+
+            return BeAliveFirtStep(_map, myTank);
             
-            if (request.Map == null)
-            {
-                return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
-            }
-
-            Update(request);
-
-            if (!AllEnemies.Any() || AllEnemies.Count == 0)
-            {
-                return new ServerResponse { ClientCommand = ClientCommandType.UpdateMap };
-            }
-            else
-            {
-                ready = true;
-            }
-
-            if (ready)
-            {
-                //Update(request);
-
-                if (ClosestEnemy == null)
-                {
-                    return new ServerResponse { ClientCommand = Walk() };
-                }
-
-                if (ClosestEnemy is BaseInteractObject)
-                {
-                    return new ServerResponse { ClientCommand = GoToTarget(request) };
-                }
-
-                if (ClosestEnemy is TankObject)
-                {
-                    return new ServerResponse { ClientCommand = GoToTarget(request) };
-                }
-
-                /*if (GetDistanse(request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt, ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt) < 10)
-                {
-                    return new ServerResponse { ClientCommand = ClientCommandType.Fire };
-                }*/
-
-                if (ClosestEnemy != null)
-                {
-                    return new ServerResponse { ClientCommand = GoToTarget(request) };
-                }
-            }
-
-            return new ServerResponse { ClientCommand = ClientCommandType.Stop };
         }
 
-        public bool isInLineX(ServerRequest request)
-        {
-            return (request.Tank.Rectangle.LeftCorner.LeftInt == ClosestEnemy.Rectangle.LeftCorner.LeftInt) ? true : false;
-        }
 
-        public bool isInLineY(ServerRequest request)
+        /// <summary>
+        /// Выполняет простую методологию по выживанию
+        /// </summary>
+        /// <returns></returns>
+        private ServerResponse BeAliveFirtStep(Map map, TankObject myTank)
         {
-            return (request.Tank.Rectangle.LeftCorner.TopInt == ClosestEnemy.Rectangle.LeftCorner.TopInt) ? true : false;
-        }
+            //Если на танковую клетку от меня есть пуля и летит в меня => Уклониться
+            ServerResponse serverResponse = GetaweyFromNearBullet(map, myTank);
 
-        public ClientCommandType Walk()
-        {
-            var Rand = new Random();
-            switch (Rand.Next(0, 10))
+            //Если жизнь вне опасности выполнять другие функции
+            if (serverResponse.ClientCommand == ClientCommandType.None)
             {
-                case 0:
-                    return ClientCommandType.TurnLeft;
-                case 1:
-                    return ClientCommandType.TurnUp;
-                case 2:
-                    return ClientCommandType.TurnRight;
-                case 3:
-                    return ClientCommandType.TurnDown;
-                default:
-                    return ClientCommandType.Go;
+                return GoToPointAndFire(map, myTank, 6, 6);
             }
+            
+            return serverResponse;
         }
 
-        public ClientCommandType GoToTarget(ServerRequest request)
+        /// <summary>
+        /// Двигает танк к указаной точке
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="myTank"></param>
+        /// <param name="destinationX"></param>
+        /// <param name="destinationY"></param>
+        /// <returns></returns>
+        private static ServerResponse GoToPointAndFire(Map map, TankObject myTank, int destinationX, int destinationY)
         {
-            var tX = 0;
-            var tY = 0;
-            var Tank = request.Tank.Rectangle.LeftCorner;
-            for (var i = Tank.LeftInt - 1; i <= Tank.LeftInt + 1; i++)
+            BaseInteractObject nearestObj = FindNearestTankWithoutWalls(map, myTank);
+            destinationX = nearestObj.Rectangle.LeftCorner.LeftInt;
+            destinationY = nearestObj.Rectangle.LeftCorner.TopInt;
+
+            if (map.InteractObjects != null)
             {
-                for (var j = Tank.TopInt + 1; j >= Tank.TopInt - 1; j--)
+                if ( Math.Abs(destinationX - GetMyX(myTank)) > Math.Abs(destinationY - GetMyY(myTank)) )
                 {
-                    if (!(i > Tank.LeftInt && j > Tank.TopInt) || !(i < Tank.LeftInt && j < Tank.TopInt) && (LocationMap[i, j] == 2 && ShortWay[i, j] != -2))
+                    //Если левый угол моего танка по Х меньше, чем левый угол достигаемого объекта и я не повёрнут направо
+                    if (GetMyX(myTank) < destinationX && myTank.Direction != DirectionType.Right)
                     {
-                        tX = i;
-                        tY = j;
-                        break;
-                    }
-                }
-            }
-
-            if (GetDistanse())
-
-            /*if (Math.Abs(Tank.LeftInt - tX) > 3 && request.Tank.Direction != DirectionType.Left)
-            {
-                return ClientCommandType.TurnLeft;
-            }
-            else if (Math.Abs(Tank.LeftInt - tX) > 3 && request.Tank.Direction == DirectionType.Left)
-            {
-                return ClientCommandType.Go;
-            }
-            else if (Math.Abs(Tank.TopInt - tY) < 3 && request.Tank.Direction != DirectionType.Down)
-            {
-                return ClientCommandType.TurnDown;
-            }
-            else if (Math.Abs(Tank.TopInt - tY) < 3 && request.Tank.Direction == DirectionType.Down)
-            {
-                return ClientCommandType.Go;
-            }
-            else if (Math.Abs(Tank.LeftInt - tX) < 3 && request.Tank.Direction != DirectionType.Right)
-            {
-                return ClientCommandType.TurnRight;
-            }
-            else if (Math.Abs(Tank.LeftInt - tX) < 3 && request.Tank.Direction == DirectionType.Right)
-            {
-                return ClientCommandType.Go;
-            }
-            else if (Math.Abs(Tank.TopInt - tY) > 3 && request.Tank.Direction != DirectionType.Up)
-            {
-                return ClientCommandType.TurnUp;
-            }
-            else if (Math.Abs(Tank.TopInt - tY) > 3 && request.Tank.Direction == DirectionType.Up)
-            {
-                return ClientCommandType.Go;
-            }*/
-
-            CurrentPosition = new Vector2(Tank.LeftInt, Tank.TopInt);
-            LocationMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] = 1;
-
-            if (CurrentPosition != LastPosition)
-            {
-                LocationMap[(int)LastPosition.X, (int)LastPosition.Y] = 0;
-                LastPosition = CurrentPosition;
-            }
-
-            return ClientCommandType.Go;
-        }
-
-        public void Update(ServerRequest request)
-        {
-            //получаем все объекты на карте
-            var AllObjectsOnMap = request.Map.InteractObjects;
-            //помещаем в переменную только танки
-            if (!AllEnemies.Any() && AllEnemies.Count > 0)
-            {
-                AllEnemies.Clear();
-            }
-            //AllEnemies.AddRange(AllObjectsOnMap.Where(x => (x is TankObject && x.Id != request.Tank.Id) || x is UpgradeInteractObject));
-            AllEnemies.AddRange(request.Map.InteractObjects.Where(x => x.Id != request.Tank.Id));
-
-            //если вражеских танков на карте нет, прекращаем игру 
-            if (!AllEnemies.Any())
-            {
-                endBattle = true;
-            }
-
-            //если игра не окончена
-            if (!endBattle)
-            {
-                //находим ближайшего врага
-                ClosestEnemy = FindClosestEnemy(request);
-
-                if (ClosestEnemy != null)
-                {
-                    //находим кратчайший путь
-                    ShortWay = FindShortestWay(request);
-
-                    //текущую позицию танка помечаем единицей
-                    LocationMap[request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt] = 1;
-
-                    FindStep(request);
-
-                    WriteFiles();
-                }
-            }
-        }
-
-        public void FindStep(ServerRequest request)
-        {
-            //соседние с текущим местоположением ячейки
-            var Neightbors = new List<Vector3>();
-
-            var goTo = new Vector2(ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt);
-
-            var Tank = request.Tank.Rectangle.LeftCorner;
-
-            for (var i = Tank.LeftInt - 1; i <= Tank.LeftInt + 1; i++)
-            {
-                for (var j = Tank.TopInt + 1; j >= Tank.TopInt - 1; j--)
-                {
-                    if (!(i > Tank.LeftInt && j > Tank.TopInt) || 
-                        !(i < Tank.LeftInt && j < Tank.TopInt || 
-                        !(i > Tank.LeftInt && j < Tank.TopInt) || 
-                        !(i < Tank.LeftInt && j > Tank.TopInt)) && 
-                        ShortWay[i, j] != -2)
-                    {
-                        Neightbors.Add(new Vector3(i, j, (float)GetDistanse(i, j, goTo.X, goTo.Y)));
-                    }
-                }
-            }
-
-            //сортируем список, чтобы первым элементом была ячейка с минимальным весом, туда и будем двигаться
-            var closest = Neightbors.OrderBy(x => x.Z).ToList();
-
-            LocationMap[(int)closest[0].X, (int)closest[0].Y] = 2;
-        }
-
-        public void WriteFiles()
-        {
-            var docPath = Environment.CurrentDirectory;
-            var sw = new StreamWriter(Path.Combine(docPath, "Short.txt"));
-            for (var i = 0; i < ShortWay.GetLength(0); i++)
-            {
-                for (var j = 0; j < ShortWay.GetLength(1); j++)
-                {
-                    sw.Write(ShortWay[i, j] + "\t");
-                }
-                sw.WriteLine();
-            }
-            sw.Close();
-
-            sw = new StreamWriter(Path.Combine(docPath, "Location.txt"));
-            for (var i = 0; i < LocationMap.GetLength(0); i++)
-            {
-                for (var j = 0; j < LocationMap.GetLength(1); j++)
-                {
-                    sw.Write(LocationMap[i, j] + "\t");
-                }
-                sw.WriteLine();
-            }
-            sw.Close();
-
-            sw = new StreamWriter(Path.Combine(docPath, "AllEnemies.txt"));
-            foreach (var i in AllEnemies)
-            {
-                sw.WriteLine($"{i.Rectangle.LeftCorner.LeftInt}, {i.Rectangle.LeftCorner.TopInt}");
-            }
-            sw.Close();
-        }
-
-        public BaseInteractObject FindClosestEnemy(ServerRequest request)
-        {
-            var Tank = request.Tank.Rectangle.LeftCorner;
-            //определяем словарь, содержащий танк и его расстояние от бота до него
-            var AllDistance = new Dictionary<BaseInteractObject, double>();
-            //заполняем словарь
-            if (AllEnemies == null || !AllEnemies.Any())
-            {
-                return null;
-            }
-            foreach (var i in AllEnemies)
-            {
-                AllDistance.Add(i, GetDistanse(Tank.LeftInt, Tank.TopInt, i.Rectangle.LeftCorner.LeftInt, i.Rectangle.LeftCorner.TopInt));
-            }
-
-            return (AllDistance.Count > 1) ? AllDistance.OrderBy(x => x.Value).First().Key : null;
-            //return AllDistance.OrderBy(x => x.Value).First().Key;
-        }
-
-        public int[,] FindShortestWay(ServerRequest request)
-        {
-            var add = true;
-            var MarkedMap = new int[LocationMap.GetLength(0), LocationMap.GetLength(1)];
-
-            var Step = 0;
-
-            for (var i = 0; i < MarkedMap.GetLength(0); i++)
-            {
-                for (var j = 0; j < MarkedMap.GetLength(1); j++)
-                {
-                    if (LocationMap[i, j] == -1)
-                    {
-                        //стена
-                        MarkedMap[i, j] = -2;
+                        //повернуть направо
+                        return TurnRight();
                     }
                     else
                     {
-                        //ещё не были здесь
-                        MarkedMap[i, j] = -1;
-                    }
-                }
-            }
-
-            //помечаем координаты цели на карте
-            MarkedMap[ClosestEnemy.Rectangle.LeftCorner.LeftInt, ClosestEnemy.Rectangle.LeftCorner.TopInt] = 0;
-            while (add)
-            {
-                for (var i = 0; i < MarkedMap.GetLength(0); i++)
-                {
-                    for (var j = 0; j < MarkedMap.GetLength(1); j++)
-                    {
-                        //если нынешняя позиция имеет "флаг" Step
-                        if (MarkedMap[i, j] == Step)
+                        //Если мой левый угол меньше, чем левый угол  апгрейда
+                        if (GetMyX(myTank) < destinationX)
                         {
-                            //определяем левый путь танка: является ли левая ячейка целевой, является ли левая ячейка непроходимым препятствием, находились ли мы в левой ячейке прежде
-                            if (i - 1 >= 0 && MarkedMap[i - 1, j] != -2 && MarkedMap[i - 1, j] == -1)
+                            //Ехать
+                            if (lastRectangle is null || (lastRectangle.LeftCorner.Left != myTank.Rectangle.LeftCorner.Left && lastRectangle.LeftCorner.Top != myTank.Rectangle.LeftCorner.Top))
                             {
-                                MarkedMap[i - 1, j] = Step + 1;
+                                lastRectangle = myTank.Rectangle;
+                                return Go();
                             }
-
-                            //справа
-                            if (i + 1 >= 0 && MarkedMap[i + 1, j] != -2 && MarkedMap[i + 1, j] == -1)
+                            else
                             {
-                                MarkedMap[i + 1, j] = Step + 1;
+                                return Fire();
                             }
+                        }
+                    }
 
-                            //сверху
-                            if (j - 1 >= 0 && MarkedMap[i, j - 1] != -2 && MarkedMap[i, j - 1] == -1)
+                    //Если левый угол моего танка по Х больше, чем левый угол достигаемого объекта и я не повёрнут на
+                    if (GetMyX(myTank) > destinationX && myTank.Direction != DirectionType.Left)
+                    {
+                        //повернуть направо
+                        return TurnLeft();
+                    }
+                    else
+                    {
+                        //Если мой левый угол меньше, чем левый угол  апгрейда
+                        if (GetMyX(myTank) > destinationX)
+                        {
+                            //Ехать
+                            if (lastRectangle is null || (lastRectangle.LeftCorner.Left != myTank.Rectangle.LeftCorner.Left && lastRectangle.LeftCorner.Top != myTank.Rectangle.LeftCorner.Top))
                             {
-                                MarkedMap[i, j - 1] = Step + 1;
+                                lastRectangle = myTank.Rectangle;
+                                return Go();
                             }
-
-                            //снизу
-                            if (j + 1 >= 0 && MarkedMap[i, j + 1] != -2 && MarkedMap[i, j + 1] == -1)
+                            else
                             {
-                                MarkedMap[i, j + 1] = Step + 1;
+                                return Fire();
                             }
                         }
                     }
                 }
-
-                Step++;
-
-                //если текущее местоположение отмечено как "непустое"
-                if (MarkedMap[(int)CurrentPosition.X, (int)CurrentPosition.Y] > 0)
-                //if (MarkedMap[request.Tank.Rectangle.LeftCorner.LeftInt, request.Tank.Rectangle.LeftCorner.TopInt] > 0)
+                else
                 {
-                    //решение найдено
-                    add = false;
-                }
-
-                //если шагов больше, чем размер карты
-                if (Step > MarkedMap.GetLength(0) * MarkedMap.GetLength(1))
-                {
-                    //решение не найдено
-                    add = false;
+                    //Если левый угол моего танка по Y меньше, чем левый угол улучшающего объекта и я не повёрнут вниз
+                    if (GetMyY(myTank) < destinationY && myTank.Direction != DirectionType.Down)
+                    {
+                        //повернуть вниз
+                        return TurnDown();
+                    }
+                    else
+                    {
+                        //Если мой левый угол меньше по Y, чем левый угол  апгрейда
+                        if (GetMyY(myTank) < destinationY)
+                        {
+                            //Ехать
+                            if (lastRectangle is null || (lastRectangle.LeftCorner.Left != myTank.Rectangle.LeftCorner.Left && lastRectangle.LeftCorner.Top != myTank.Rectangle.LeftCorner.Top))
+                            {
+                                lastRectangle = myTank.Rectangle;
+                                return Go();
+                                
+                            }
+                            else
+                            {
+                                return Fire();
+                            }
+                        }
+                    }
+                    
+                    //Если левый угол моего танка по Y больше, чем левый угол улучшающего объекта и я не повёрнут вверх
+                    if (GetMyY(myTank) > destinationY && myTank.Direction != DirectionType.Up)
+                    {
+                        //повернуть вверх
+                        return TurnUp();
+                    }
+                    else
+                    {
+                        //Если мой левый угол меньше, чем левый угол объекта
+                        if (GetMyY(myTank) > destinationY)
+                        {
+                            //Ехать
+                            if (lastRectangle is null || (lastRectangle.LeftCorner.Left != myTank.Rectangle.LeftCorner.Left && lastRectangle.LeftCorner.Top != myTank.Rectangle.LeftCorner.Top))
+                            {
+                                lastRectangle = myTank.Rectangle;
+                                return Go();
+                            }
+                            else
+                            {
+                                return Fire();
+                            }
+                        }
+                        else
+                        {
+                            return Fire();
+                        }
+                    }
                 }
             }
 
-            return MarkedMap;
+            return new ServerResponse { ClientCommand = ClientCommandType.None };
         }
 
-        public double GetDistanse(double x1, double y1, double x2, double y2)
+        /// <summary>
+        /// Находит ближайший объект (без стен)
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="myTank"></param>
+        /// <returns></returns>
+        private static BaseInteractObject FindNearestTankWithoutWalls(Map map, TankObject myTank)
         {
-            return Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
+            int shortestDistToElem = map.MapHeight;
+            var lastIndex = map.InteractObjects.Count - 1;
+            BaseInteractObject nearestObject = map.InteractObjects[lastIndex];
+
+            //Если есть интерактивные объекты
+            if (map.InteractObjects != null)
+            {
+                foreach (var elem in map.InteractObjects)
+                {
+                    //Если этот элемент это 
+                    if ( elem is TankObject && !Equals(elem.Id, myTank.Id) )
+                    {
+                        var distToElem = (Math.Abs(elem.Rectangle.LeftCorner.LeftInt - GetMyX(myTank)) + Math.Abs(elem.Rectangle.LeftCorner.TopInt - GetMyY(myTank)));
+                        if (distToElem < shortestDistToElem)
+                        {
+                            shortestDistToElem = distToElem;
+                            nearestObject = elem;
+                        }
+                    }
+                }
+            }
+            return nearestObject;
         }
+
+        /// <summary>
+        /// Переводит карту в массив лишь с проходимыми и не проходимыми полями
+        /// </summary>
+        /// <param name="map"></param>
+        /// <returns></returns>
+        private static int [,] TranslMapForPassfind(Map map)
+        {
+            var transArr = new int[map.MapHeight, map.MapWidth];
+            var arrXLen = transArr.GetLength(0);
+            var arrYLen = transArr.GetLength(1);
+            for (var x = 0; x < arrXLen; x++)
+            {
+                for (var y = 0; y < arrYLen; y++) {
+                    if (map.Cells[x,y].Equals(CellMapType.Grass) || map.Cells[x, y].Equals(CellMapType.Void)) //Исправить. брать в учёт размер танка
+                    {
+                        transArr[x, y] = 0;
+                    }
+                    else
+                    {
+                        transArr[x, y] = -1;
+                    }
+                }
+            }
+
+            return transArr;
+        } //надо переделать учитывая проходимость танка
+
+        /// <summary>
+        /// Принимает направление и передвигает туда танк
+        /// </summary>
+        /// <param name="direction"> 0 = вниз| 1 = вправо| 2 = вверх| 3 = влево</param>
+        private static ServerResponse EasyMove(int direction)
+        {
+            if(direction == 0 && stepsBeforeOver == 0)
+            {
+                delegateScript = TurnDown;
+                stepsBeforeOver = 2;
+            }
+            if (direction == 1 && stepsBeforeOver == 0)
+            {
+                delegateScript = TurnRight;
+                stepsBeforeOver = 2;
+            }
+            if (direction == 2 && stepsBeforeOver == 0)
+            {
+                delegateScript = TurnUp;
+                stepsBeforeOver = 2;
+            }
+            if (direction == 3 && stepsBeforeOver == 0)
+            {
+                delegateScript = TurnLeft;
+                stepsBeforeOver = 2;
+            }
+            if (stepsBeforeOver == 1)
+            {
+                delegateScript = Go;
+            }
+            if (stepsBeforeOver > 0)
+            {
+                stepsBeforeOver--;
+            }
+
+            return delegateScript();
+        }
+
+        /// <summary>
+        /// Проверяет есть ли пуля на расстоянии одной Танковой клетки вокруг танка  и если есть, то уклоняется
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="myTank"></param>
+        /// <returns></returns>
+        private static ServerResponse GetaweyFromNearBullet(Map map, TankObject myTank)
+        {
+            var servResp = new ServerResponse { ClientCommand = ClientCommandType.None };
+            var myX = myTank.Rectangle.LeftCorner.LeftInt;
+            var myY = myTank.Rectangle.LeftCorner.TopInt;
+
+            foreach(var elem in map.InteractObjects)
+            {
+                if (elem is BulletObject)
+                {
+                    var bullX = elem.Rectangle.LeftCorner.LeftInt;
+                    var bullY = elem.Rectangle.LeftCorner.TopInt;
+                    //Если пуля близко
+                    if (Math.Abs(myX - bullX) < (Constants.CellHeight * 3) && Math.Abs(myY - bullY) < (Constants.CellWidth * 3))
+                    {
+                        //Попадёт ли она?
+                        if ( IsThisBulletHitTank(bullX, bullY, myX, myY, (elem as BulletObject).Direction) )
+                        {
+                            //Уклониться в зависимости от направления пули
+                            servResp = GoOutFromBulletWay(map, myTank,(elem as BulletObject), (elem as BulletObject).Direction);
+                        }
+                    }
+                }
+            }
+
+            return servResp;
+        }
+
+        /// <summary>
+        /// Проверяет попадёт ли пуля в мой танк
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="myTank"></param>
+        /// <param name="bullX"></param>
+        /// <param name="bullY"></param>
+        /// <param name="myX"></param>
+        /// <param name="myY"></param>
+        /// <param name="bullDirec">Направление пули, которая проверяется на попадение в танк</param>
+        /// <returns></returns>
+        private static bool IsThisBulletHitTank(int bullX, int bullY , int myX, int myY, DirectionType bullDirec)
+        {
+            //Если совпала по Х
+            if ( bullX >= myX && bullX <= myX + (Constants.CellWidth - 1) )
+            {
+                //Если выше(меньше) по Y и направлена вниз
+                if (bullY < myY && bullDirec == DirectionType.Down)
+                {
+                    return true;
+                }
+                //Если ниже(больше) по Y и направлена вверх
+                if (bullY > myY && bullDirec == DirectionType.Up)
+                {
+                    return true;
+                }
+            }
+            if (bullY >= myY && bullY <= myY + (Constants.CellHeight - 1))
+            {
+                //Если левее(меньше) по X и направлена вправо
+                if (bullX < myX && bullDirec == DirectionType.Right)
+                {
+                    return true;
+                }
+                //Если правее(больше) по Х и направлена влево
+                if (bullX > myX && bullDirec == DirectionType.Left)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Проверяетможет ли танк улониться и в какую сторону и уклоняет танк
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="myTank"></param>
+        /// <param name="bullet"></param>
+        /// <param name="direction">Направление пули</param>
+        /// <returns></returns>
+        private static ServerResponse GoOutFromBulletWay(Map map, TankObject myTank, BulletObject bullet, DirectionType bullDirec)
+        {
+            var bullX = bullet.Rectangle.LeftCorner.LeftInt;
+            var bullY = bullet.Rectangle.LeftCorner.TopInt;
+            var myX = myTank.Rectangle.LeftCorner.LeftInt;
+            var myY = myTank.Rectangle.LeftCorner.TopInt;
+
+            //Если совпала по Х
+            if (bullX >= myX && bullX <= myX + (Constants.CellWidth - 1))
+            {
+                //Если выше(меньше) по Y и направлена вниз
+                if (bullY < myY && bullDirec == DirectionType.Down)
+                {
+                    //Если направо можно ходить направо, то увернуться направо
+                    if(map.Cells[myX + ((Constants.CellWidth * 2) - 1),myY] == CellMapType.Void || map.Cells[myX, myY] == CellMapType.Grass)
+                    {
+                        if (myTank.Direction != DirectionType.Right)
+                        {
+                            return new ServerResponse { ClientCommand = ClientCommandType.TurnRight };
+                        }
+                        else
+                        {
+                            return new ServerResponse { ClientCommand = ClientCommandType.Go };
+                        }
+                    }
+                    else
+                    {
+                        //Если можно ходить налево, то увернуться налево
+                        if (map.Cells[myX - Constants.CellWidth, myY] == CellMapType.Void || map.Cells[myX, myY] == CellMapType.Grass)
+                        {
+                            if (myTank.Direction != DirectionType.Left)
+                            {
+                                return new ServerResponse { ClientCommand = ClientCommandType.TurnLeft };
+                            }
+                            else
+                            {
+                                return new ServerResponse { ClientCommand = ClientCommandType.Go };
+                            }
+                        }
+                        //Иначе стрелять в снаряд
+                    }
+                }
+                //Если ниже(больше) по Y и направлена вверх
+                if (bullY > myY && bullDirec == DirectionType.Up)
+                {
+                    
+                }
+            }
+
+            return new ServerResponse { ClientCommand = ClientCommandType.None };
+        }
+
+        private static ServerResponse Fire()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.Fire };
+        }
+
+        private static ServerResponse TurnRight()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.TurnRight };
+        }
+
+        private static ServerResponse TurnLeft()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.TurnLeft };
+        }
+
+        private static ServerResponse TurnUp()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.TurnUp };
+        }
+
+        private static ServerResponse TurnDown()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.TurnDown };
+        }
+
+        private static ServerResponse Go()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.Go };
+        }
+
+        private static ServerResponse Stop()
+        {
+            return new ServerResponse { ClientCommand = ClientCommandType.Stop };
+        }
+
+        private static int GetMyX(TankObject tank)
+        {
+            return tank.Rectangle.LeftCorner.LeftInt;
+        }
+
+        private static int GetMyY(TankObject tank)
+        {
+            return tank.Rectangle.LeftCorner.TopInt;
+        }
+
     }
 }

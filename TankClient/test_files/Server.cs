@@ -21,30 +21,29 @@ namespace TankServer
         protected DateTime _lastCoreUpdate;
 
         protected readonly uint _maxBotsCount;
-        protected readonly uint _coreUpdateMs;
-        protected readonly uint _spectatorUpdateMs;
-        protected readonly uint _botUpdateMs;
 
-        public static TankSettings _tankSettings = new TankSettings(); 
+        public static TankSettings Settings = new TankSettings();
+        public string ConfigPath;
 
         public readonly Map Map;
         public Dictionary<IWebSocketConnection, ClientInfo> Clients;
 
         public readonly Logger _logger;
 
-        public Server(Map map, uint port, uint maxBotsCount, uint coreUpdateMs, uint spectatorUpdateMs, uint botUpdateMs)
+        public Server(Map map, uint port, uint maxBotsCount, TankSettings tankSettings)
         {
             Map = map;
             Clients = new Dictionary<IWebSocketConnection, ClientInfo>();
+            Settings = tankSettings;
 
             _maxBotsCount = maxBotsCount;
-            _coreUpdateMs = coreUpdateMs;
-            _spectatorUpdateMs = spectatorUpdateMs;
-            _botUpdateMs = botUpdateMs;
 
             _random = new Random();
             _logger = LogManager.GetCurrentClassLogger();
             //FleckLog.Level = LogLevel.Debug;
+
+            CreateConfigResourcesIfNotExist();
+            WriteConfig();
 
             _socketServer = new WebSocketServer($"ws://0.0.0.0:{port}");
             _socketServer.Start(socket =>
@@ -55,7 +54,7 @@ namespace TankServer
                     {
                         Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [КЛИЕНТ+]: {socket.ConnectionInfo.ClientIpAddress}");
                         _logger.Info($"[КЛИЕНТ+]: {socket.ConnectionInfo.ClientIpAddress}");
-                        Clients.Add(socket, new ClientInfo());
+                        Clients.Add(socket, new ClientInfo() { Request = new ServerRequest { Settings = Settings, IsSettingsChanged = true } });
                     }
                 };
                 socket.OnClose = () =>
@@ -112,37 +111,17 @@ namespace TankServer
                                     return;
                                 }
 
+                                //Settings.UpdateAll("s1", "BattleCity", "00:04:00", 4, 4, 6, 50);
+
                                 Console.WriteLine($"{DateTime.Now.ToShortTimeString()} Вход на сервер: {(string.IsNullOrWhiteSpace(response.CommandParameter) ? "наблюдатель" : response.CommandParameter)}");
                                 _logger.Info($"Вход на сервер: {(string.IsNullOrWhiteSpace(response.CommandParameter) ? "наблюдатель" : response.CommandParameter)}");
 
-                                var _fileSettings = GetSettings(out var ConfigPath);
-                                if (isSettingsChanged(_tankSettings, _fileSettings))
-                                {
-                                    try
-                                    {
-                                        //Thread.Sleep(500);
-                                        var SW = new StreamWriter(ConfigPath, false, System.Text.Encoding.Default);
-                                        if (SW.BaseStream != null)
-                                        {
-                                            typeof(TankSettings)
-                                                .GetProperties()
-                                                .Select(x => x.GetValue(_tankSettings, null))
-                                                .ToList()
-                                                .ForEach(x => SW.WriteLine(x));
-                                            SW.Close();
-                                        }
-                                    }
-                                    catch(IOException e)
-                                    {
-                                        Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
-                                    }
-                                }
-
-                                //Проверка на изменения при установке новых настроек
-                                //_tankSettings = new TankSettings("BattleCity", 0, TimeSpan.Parse("00:30:00"), 10, 1000, 5000, 500);
-
                                 clientInfo.IsLogined = true;
                                 clientInfo.NeedUpdateMap = true;
+
+                                clientInfo.Request = isSettingsChanged(GetSettings())
+                                    ? new ServerRequest { IsSettingsChanged = true, Settings = Settings }
+                                    : new ServerRequest { IsSettingsChanged = false };
 
                                 if (string.IsNullOrWhiteSpace(response.CommandParameter))
                                 {
@@ -183,91 +162,92 @@ namespace TankServer
                             _logger.Info($"[КЛИЕНТ]: ответ от {socket.ConnectionInfo.ClientIpAddress} = {response.ClientCommand}");
                         }
                     }
+
+                    Settings.UpdateAll("s1", "BattleCity", "00:04:00", 4, 4, 6, 50);
                 };
             });
         }
 
-        public TankSettings GetSettings(out string ConfigPath)
+        public void CreateConfigResourcesIfNotExist()
         {
-            var _fileSettings = new TankSettings();
             ConfigPath = $"{Directory.GetCurrentDirectory()}/config";
-            
+
             if (!Directory.Exists(ConfigPath))
             {
                 Directory.CreateDirectory(ConfigPath);
             }
 
-            ConfigPath += "/TankConfig.txt";
-
-            if (!File.Exists(ConfigPath))
+            if (!File.Exists(ConfigPath += "/TankConfig.txt"))
             {
                 File.Create(ConfigPath);
-            //}
+            }
+        }
 
-                try
+        public void WriteConfig()
+        {
+            try
+            {
+                var SW = new StreamWriter(ConfigPath, false, System.Text.Encoding.Default);
+                typeof(TankSettings)
+                    .GetProperties()
+                    .Select(x => x.GetValue(Settings, null))
+                    .ToList()
+                    .ForEach(x => SW.WriteLine(x));
+
+                SW.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
+            }
+        }
+
+        public TankSettings GetSettings()
+        {
+            var _fileSettings = new TankSettings();
+            
+            try
+            {
+                var SR = new StreamReader(ConfigPath);
+
+                var FileEntry = new List<string>();
+                FileEntry.AddRange(SR.ReadToEnd().Replace("\r", "").Split('\n'));
+
+                SR.Close();
+
+                var isCorrectSession = TimeSpan.TryParse(FileEntry[3], out var _sessionTime);
+                var isCorrectGameSpeed = decimal.TryParse(FileEntry[4], out var _gameSpeed);
+                var isCorrectTankSpeed = decimal.TryParse(FileEntry[5], out var _tankSpeed);
+                var isCorrectBulletSpeed = decimal.TryParse(FileEntry[6], out var _bulletSpeed);
+                var isCorrectTankDamage = decimal.TryParse(FileEntry[7], out var _tankDamage);
+
+                if (isCorrectSession && isCorrectGameSpeed && isCorrectTankSpeed && isCorrectBulletSpeed && isCorrectTankDamage)
                 {
-                    var SR = new StreamReader(ConfigPath);
-                    SR.Close();
-
-                    var FileEntry = new List<string>();
-
-                    FileEntry.AddRange(SR.ReadToEnd().Split('\n'));
-                    /*if (FileEntry.Count() <= 1)
-                    {
-                        return null;
-                    }*/
-                    SR.Close();
-
-                    if (FileEntry.Count() > 1)
-                    {
-                        var isCorrectSession = TimeSpan.TryParse(FileEntry[3], out var _sessionTime);
-                        var isCorrectGameSpeed = decimal.TryParse(FileEntry[4], out var _gameSpeed);
-                        var isCorrectTankSpeed = decimal.TryParse(FileEntry[5], out var _tankSpeed);
-                        var isCorrectBulletSpeed = decimal.TryParse(FileEntry[6], out var _bulletSpeed);
-                        var isCorrectTankDamage = decimal.TryParse(FileEntry[7], out var _tankDamage);
-
-                        if (isCorrectSession && isCorrectGameSpeed && isCorrectTankSpeed && isCorrectBulletSpeed && isCorrectTankDamage)
-                        {
-                            _fileSettings = new TankSettings
-                            {
-                                ServerName = FileEntry[1],
-                                ServerType = (ServerType)Enum.Parse(typeof(ServerType), FileEntry[2]),
-                                SessionTime = _sessionTime,
-                                GameSpeed = _gameSpeed,
-                                TankSpeed = _tankSpeed,
-                                BulletSpeed = _bulletSpeed,
-                                TankDamage = _tankDamage
-                            };
-                        }
-                        /*else
-                        {
-                            throw new Exception("Один или несколько параметров были изменены");
-                        }*/
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                    _fileSettings.UpdateAll(FileEntry[1], FileEntry[2], FileEntry[3], _gameSpeed, _tankSpeed, _bulletSpeed, _tankDamage);
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
-                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
             }
 
             return _fileSettings;
         }
 
-        public bool isSettingsChanged(TankSettings _tankSettings, TankSettings _fileSettings)
+        public bool isSettingsChanged(TankSettings _fileSettings)
         {
-            return (_tankSettings.ServerName == _fileSettings.ServerName &&
-                _tankSettings.ServerType == _fileSettings.ServerType &&
-                _tankSettings.SessionTime - _fileSettings.SessionTime < new TimeSpan(1) &&
-                _tankSettings.GameSpeed == _fileSettings.GameSpeed &&
-                _tankSettings.TankSpeed == _fileSettings.TankSpeed &&
-                _tankSettings.TankDamage == _fileSettings.TankDamage &&
-                _tankSettings.BulletSpeed == _fileSettings.BulletSpeed) ? false : true;
-            //return _tankSettings.Equals(_fileSettings) ? false : true;
+            if (_fileSettings == null)
+            {
+                return true;
+            }
+
+            return (Settings.ServerName != _fileSettings.ServerName ||
+                Settings.ServerType != _fileSettings.ServerType ||
+                Settings.SessionTime != _fileSettings.SessionTime ||
+                Settings.GameSpeed != _fileSettings.GameSpeed ||
+                Settings.TankSpeed != _fileSettings.TankSpeed ||
+                Settings.TankDamage != _fileSettings.TankDamage ||
+                Settings.BulletSpeed != _fileSettings.BulletSpeed) ? true : false;
         }
 
         public void Dispose()
@@ -313,7 +293,7 @@ namespace TankServer
                 break;
             }
 
-            var tank = new TankObject(Guid.NewGuid(), rectangle, _tankSettings.TankSpeed, false, 100, 100, nickname, tag, _tankSettings.TankDamage);
+            var tank = new TankObject(Guid.NewGuid(), rectangle, Settings.TankSpeed, false, 100, 100, nickname, tag, Settings.TankDamage);
             Map.InteractObjects.Add(tank);
 
             return tank;
@@ -321,8 +301,6 @@ namespace TankServer
 
         private void AddBullet(TankObject clientTank)
         {
-            clientTank.BulletSpeed = _tankSettings.BulletSpeed;
-
             if(Map.InteractObjects.OfType<BulletObject>().Any(b => b.SourceId == clientTank.Id))
             {
                 return;
@@ -349,6 +327,7 @@ namespace TankServer
                     break;
             }
 
+            clientTank.BulletSpeed = Settings.BulletSpeed;
             var bullet = new BulletObject(Guid.NewGuid(), new Rectangle(location, 1, 1), clientTank.BulletSpeed, 
                 true, clientTank.Direction, clientTank.Id, clientTank.Damage);
 
@@ -373,16 +352,16 @@ namespace TankServer
                     await SendUpdates(false, cancellationToken);
 
                     // в более частом цикле высылаем состояние движка для наблюдателей
-                    var botTimer = Convert.ToInt32(_botUpdateMs);
+                    var botTimer = 250;
                     while (botTimer > 0 && !cancellationToken.IsCancellationRequested)
                     {
-                        await Task.Delay(Convert.ToInt32(_spectatorUpdateMs));
+                        await Task.Delay(100);
                         if (cancellationToken.IsCancellationRequested)
                         {
                             break;
                         }
 
-                        botTimer -= Convert.ToInt32(_spectatorUpdateMs);
+                        botTimer -= 100;
                         await SendUpdates(true, cancellationToken);
                     }
 
@@ -466,7 +445,6 @@ namespace TankServer
                     }
 
                     var clientTank = Map.InteractObjects.OfType<TankObject>().FirstOrDefault(t => t.Id == client.Value.InteractObject.Id);
-  
                     if (null == clientTank && !client.Value.IsSpecator)
                     {
                         continue;
@@ -575,11 +553,9 @@ namespace TankServer
                     }
                 }
 
-                var request = new ServerRequest
-                {
-                    Map = clientMap,
-                    Tank = client.Value.InteractObject as TankObject
-                };
+                var request = isSettingsChanged(GetSettings())
+                    ? new ServerRequest { Map = clientMap, Tank = client.Value.InteractObject as TankObject, IsSettingsChanged = true, Settings = Settings }
+                    : new ServerRequest { Map = clientMap, Tank = client.Value.InteractObject as TankObject, IsSettingsChanged = false };
 
                 var json = request.ToJson();
 
@@ -613,7 +589,7 @@ namespace TankServer
             {
                 try
                 {
-                    await Task.Delay(Convert.ToInt32(_coreUpdateMs));
+                    await Task.Delay(100);
                     if (cancellationToken.IsCancellationRequested)
                     {
                         break;
@@ -673,6 +649,14 @@ namespace TankServer
 
                                     if (movingObject is BulletObject bulletObject)
                                     {
+                                        //проверка на изменения настроек 
+                                        if (movingObject.Speed != Settings.BulletSpeed)
+                                        {
+                                            movingObject.Speed = Settings.BulletSpeed;
+                                        }
+
+                                        movingObject.Speed *= Settings.GameSpeed;
+
                                         if (cells.Any(c => c.Value == CellMapType.Wall))
                                         {
                                             objsToRemove.Add(bulletObject);
@@ -744,9 +728,23 @@ namespace TankServer
                                             canMove = false;
                                         }
 
+                                        //проверка на изменения настроек 
+                                        if (movingObject.Speed != Settings.TankSpeed)
+                                        {
+                                            movingObject.Speed = Settings.TankSpeed;
+                                        }
+
+                                        movingObject.Speed *= Settings.GameSpeed;
+
                                         if (intersectedObject is UpgradeInteractObject upgradeObject)
                                         {
                                             var tank = movingObject as TankObject;
+
+                                            if (Settings.TankDamage != tank.Damage)
+                                            {
+                                                tank.Damage = Settings.TankDamage;
+                                            }
+
                                             switch (upgradeObject.Type)
                                             {
                                                 case UpgradeType.BulletSpeed:
@@ -833,6 +831,11 @@ namespace TankServer
                                 Map.InteractObjects.Remove(objToRemove);
                             }
                         }
+                    }
+
+                    if (isSettingsChanged(GetSettings()))
+                    {
+                        WriteConfig();
                     }
                 }
                 catch (Exception e)
