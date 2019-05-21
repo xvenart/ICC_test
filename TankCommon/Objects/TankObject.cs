@@ -17,7 +17,7 @@ namespace TankCommon.Objects
         {
         }
 
-        public TankObject(Guid id, Rectangle rectangle, decimal speed, bool isMoving, decimal maximumHp, decimal hp, string nickname, string tag)
+        public TankObject(Guid id, Rectangle rectangle, decimal speed, bool isMoving, decimal maximumHp, decimal hp, string nickname, string tag, decimal damage)
             : base(id, rectangle, speed, isMoving, DirectionType.Left)
         {
             MaximumHp = maximumHp;
@@ -26,7 +26,7 @@ namespace TankCommon.Objects
             Nickname = nickname;
             Score = 0;
             BulletSpeed = 7;
-            Damage = 40;
+            Damage = damage;
         }
     }
 }

@@ -4,10 +4,10 @@ namespace TankCommon.Enum
 {
     public enum CellMapType
     {
-        Void,
-        Water,
-        Grass,
-        Wall,
-        DestructiveWall
+        Void = 0, 
+        Water = 1,
+        Grass = 2,
+        Wall = 3,
+        DestructiveWall = 4
     }
 }

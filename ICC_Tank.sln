@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28822.285
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2050
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ICC_Tank", "ICC_Tank.csproj", "{BEBE2B15-AA08-4B4F-A033-A0EFB4E1F9B3}"
 EndProject
@@ -12,6 +12,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TankCommon", "TankCommon\TankCommon.csproj", "{526FDE6C-B319-451E-85F1-7C4824267749}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TankGuiObserver", "TankGuiObserver\TankGuiObserver.csproj", "{570481BA-52E3-4A52-8825-9B046A741F3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTestProject", "UnitTestProject\UnitTestProject.csproj", "{498E3EFE-5D98-4A35-94FA-B49A89376621}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TankGuiObserver2", "TankGuiObserver2\TankGuiObserver2.csproj", "{FA9472AB-7718-4A70-B209-4C459AEE2B18}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KashutinClient", "KashutinBot\KashutinClient.csproj", "{2C0874C6-B0F3-4504-B9B1-93D99580D393}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +45,18 @@ Global
 		{570481BA-52E3-4A52-8825-9B046A741F3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{570481BA-52E3-4A52-8825-9B046A741F3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{570481BA-52E3-4A52-8825-9B046A741F3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{498E3EFE-5D98-4A35-94FA-B49A89376621}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{498E3EFE-5D98-4A35-94FA-B49A89376621}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{498E3EFE-5D98-4A35-94FA-B49A89376621}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{498E3EFE-5D98-4A35-94FA-B49A89376621}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA9472AB-7718-4A70-B209-4C459AEE2B18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA9472AB-7718-4A70-B209-4C459AEE2B18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA9472AB-7718-4A70-B209-4C459AEE2B18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA9472AB-7718-4A70-B209-4C459AEE2B18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C0874C6-B0F3-4504-B9B1-93D99580D393}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C0874C6-B0F3-4504-B9B1-93D99580D393}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C0874C6-B0F3-4504-B9B1-93D99580D393}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C0874C6-B0F3-4504-B9B1-93D99580D393}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

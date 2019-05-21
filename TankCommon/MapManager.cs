@@ -10,75 +10,46 @@ namespace TankCommon
 {
     public static class MapManager
     {
-        public static Map LoadMap(uint mapSize = 12, char primaryObject = 'т', int percentOfPrimObj = 25, int percentAnotherObj = 12)
+        /// <summary>
+        /// Создаёт карту по переданным параметрам
+        /// </summary>
+        /// <param name="mapHeight">Высота создаваемой карты</param>
+        /// <param name="mapWidth">Ширина создаваемой карты</param>
+        /// <param name="primaryObject">Объекты, которых должно быть больше всего на карте</param>
+        /// <param name="percentOfPrimObj">Процент объектов преобладающих на карте</param>
+        /// <param name="percentAnotherObj">Процент присутствия на карте второстепенных объектов</param>
+        /// <returns>Объект типа карта</returns>
+        public static Map LoadMap(int mapHeight = 20, int mapWidth = 20, CellMapType primaryObject = CellMapType.Grass, int percentOfPrimObj = 50, int percentAnotherObj = 50)
         {
-            var mapData = GenerateMap(mapSize, primaryObject, percentOfPrimObj, percentAnotherObj);
-            var width = 0;
-            var height = 0;
+            var mapData = GenerateMap(mapHeight, mapWidth, primaryObject, percentOfPrimObj, percentAnotherObj);
             var cells = new List<List<CellMapType>>();
-            foreach (var line in mapData)
+
+            if (percentOfPrimObj + percentAnotherObj > 100)
             {
-                height++;
-                if (0 == width)
-                {
-                    width = line.Length;
-                }
-                else if (line.Length != width)
-                {
-                    throw new InvalidDataException("Карта содержит разное количество элементов в строках");
-                }
+                throw new InvalidDataException("Это сочетание работоспособно, но нет смысла ставить процентов больше 100");
+            }
 
-                var cellLine = new List<CellMapType>();
-                foreach (var c in line)
-                {
-                    CellMapType cellMapType;
-                    switch (c)
-                    {
-                        case 'с':
-                            cellMapType = CellMapType.Wall;
-                            break;
-                        case ' ':
-                            cellMapType = CellMapType.Void;
-                            break;
-                        case 'в':
-                            cellMapType = CellMapType.Water;
-                            break;
-                        case '*':
-                            cellMapType = CellMapType.DestructiveWall;
-                            break;
-                        case 'т':
-                            cellMapType = CellMapType.Grass;
-                            break;
-                        default:
-                            throw new InvalidDataException("Неизвестный тип элемента карты");
-                    }
+            if (mapData.GetLength(0) <= 5 || mapData.GetLength(1) <= 5)
+            {
+                throw new InvalidDataException("Слишком маленькая карта");
+            }
 
-                    for (var b = 0; b < Constants.CellWidth; b++)
-                    {
-                        cellLine.Add(cellMapType);
-                    }
-                }
-
-                for (var a = 0; a < Constants.CellHeight; a++)
+            //Финальный массив должен быть умножен на ширину и длинну константных клеток
+            var cellArr = new CellMapType[mapHeight * Constants.CellHeight, mapWidth * Constants.CellWidth];
+            var cellArrHeight = cellArr.GetLength(0);
+            var cellArrWidth = cellArr.GetLength(1);
+            //Масштабирую карту исходя из констант
+            for (var height = 0; height < cellArrHeight; height++)
+            {
+                for (var width = 0; width < cellArrWidth; width++)
                 {
-                    cells.Add(cellLine);
+                    var oldHeight = (int)Math.Ceiling((decimal)(height / Constants.CellHeight));
+                    var oldWidth = (int)Math.Ceiling((decimal)(width / Constants.CellHeight));
+                    cellArr[height, width] = mapData[oldHeight, oldWidth];
                 }
             }
 
-            if (0 == width || 0 == height)
-            {
-                throw new InvalidDataException("Карта не может быть пустой");
-            }
-
-            var cellArr = new CellMapType[height * Constants.CellHeight, width * Constants.CellWidth];
-            for (var i = 0; i < height * Constants.CellHeight; i++)
-            {
-                for (var j = 0; j < width * Constants.CellWidth; j++)
-                {
-                    cellArr[i, j] = cells[i][j];
-                }
-            }
-
+            
             return new Map(cellArr);
         }
 
@@ -110,77 +81,35 @@ namespace TankCommon
         }
 
         /// <summary>
-        /// Генерирует квадратную карту по переданной длинне стороны
+        ///Генерирует квадратную карту по переданным высоте и ширине
         /// </summary>
-        /// <param name="mapSize"></param>
-        /// <returns>Массив, представляет каждый элемент, как ширину карты</returns>
-        private static string[] GenerateMap(uint mapSize, char primaryObject, int percentOfPrimObj, int percentAnotherObj)
+        /// <param name="mapHeight"></param>
+        /// <param name="mapWidth"></param>
+        /// <param name="primaryObject"></param>
+        /// <param name="percentOfPrimObj"></param>
+        /// <param name="percentAnotherObj"></param>
+        /// <returns>Двумерный массив сосотоящий из CellMapType</returns>
+        private static CellMapType[,] GenerateMap(int mapHeight, int mapWidth, CellMapType primaryObject, int percentOfPrimObj, int percentAnotherObj)
         {
-            //var Walls = 'с';
-            //var DestructiveWalls = '*';
-            //var Water = 'в';
-            //var Grass = 'т';
-            //var Void = ' ';
-
-            //создаю и заполняю массив (чаров для удобства генерации карты)
-            var preMap = new char[mapSize, mapSize];
-
-            for (var x = 0; x < mapSize; x++)
+            //создаю и заполняю массив, по краям карты ставлю стены
+            var preMap = new CellMapType[mapHeight,mapWidth];
+            for (var y = 0; y < mapHeight; y++)
             {
-                for (var y = 0; y < mapSize; y++)
+                for (var x = 0; x < mapWidth; x++)
                 {
-                    if (x == 0 || y == 0 || x == mapSize - 1 || y == mapSize - 1)
+                    if (y == 0 || x == 0 || y == mapHeight - 1 || x == mapWidth - 1)
                     {
-                        preMap[x, y] = 'с';
+                        preMap[y, x] = CellMapType.Wall;
                     }
                     else
                     {
-                        preMap[x, y] = ' ';
+                        preMap[y, x] = CellMapType.Void;
                     }
                 }
             }
-            //preMap = GenerateRndMapObjects(preMap, primaryObject, percentOfPrimObj, percentAnotherObj);
+
             preMap = GeneratePrimitiveOnMap(preMap, primaryObject, percentOfPrimObj, percentAnotherObj);
-            // возвращаю карту в виде массива стрингов
-            return GetStringedArray(preMap);
-        }
-
-        /// <summary>
-        /// Генерирует объекты на переданной карте и возвращает её
-        /// </summary>
-        /// <param name="map">Пустая карта с краями</param>
-        /// <param name="primaryObject">Какого типа объектов должно быть больше всего</param>
-        /// <param name="percentOfPrimObj">Какой процент карты должны занимать объекты выбранного типа</param>
-        /// <returns></returns>
-        private static char[,] GenerateRndMapObjects(char[,] map, char primaryObject, int percentOfPrimObj, int percentAnotherObj)
-        {
-            var mapObjects = new char[] { 'с', ' ', '*', 'т', 'в' };
-            var rnd = new Random();
-            int rndNum;
-
-            for (var x = 0; x < map.GetLength(0); x++)
-            {
-                for (var y = 0; y < map.GetLength(1); y++)
-                {
-                    if (map[x, y] == ' ')
-                    {
-                        //Для каждого элемента карты беру рандомное число
-                        rndNum = rnd.Next(0, 100); 
-                        if (rndNum < percentOfPrimObj)
-                        {
-                            map[x, y] = primaryObject;
-                        }
-                        else
-                        {
-                            if (rndNum < (percentOfPrimObj + percentAnotherObj))
-                            {
-                                map[x, y] = mapObjects[rnd.Next(0, 4)];
-                            }
-                        }
-                    }
-                }
-            }
-            return map;
+            return preMap;
         }
 
         /// <summary>
@@ -191,12 +120,12 @@ namespace TankCommon
         /// <param name="percentOfPrimObj"></param>
         /// <param name="percentAnotherObj"></param>
         /// <returns></returns>
-        private static char[,] GeneratePrimitiveOnMap(char [,] map, char primaryObject, int percentOfPrimObj, int percentAnotherObj)
+        private static CellMapType[,] GeneratePrimitiveOnMap(CellMapType[,] map, CellMapType primaryObject, int percentOfPrimObj, int percentAnotherObj)
         {
             var rnd = new Random();
-            map = DrawHorizontals(map, primaryObject, percentOfPrimObj, rnd);
             map = DrawVerticals(map, percentOfPrimObj, percentAnotherObj, rnd);
-            map = CheckLineOnPass(map);
+            map = DrawHorizontals(map, primaryObject, percentOfPrimObj, rnd);
+            
             return map;
         }
 
@@ -208,19 +137,24 @@ namespace TankCommon
         /// <param name="percentOfPrimObj"></param>
         /// <param name="rnd"></param>
         /// <returns></returns>
-        private static char[,] DrawHorizontals(char[,] map, char symbol, int percentOfPrimObj, Random rnd)
+        private static CellMapType[,] DrawHorizontals(CellMapType[,] map, CellMapType symbol, int percentOfPrimObj, Random rnd)
         {
             int rndNum;
-            for (var x = 1; x < map.GetLength(0) - 1; x++)
+            var mapWidth = map.GetLength(1);
+            var mapHeight = map.GetLength(0);
+            for (var y = 2; y < mapHeight - 2; y++)
             {
                 rndNum = rnd.Next(0, 100);
-                for (var y = 1; y < map.GetLength(0) - 1; y++)
+                for (var x = 2; x < mapWidth - 2; x++)
                 {
                     if (rndNum < percentOfPrimObj)
                     {
-                        //создаю строку того типа, которого должно быть больше
-                        map[x, y] = symbol;
-                      
+                        if (map[y - 1, x - 1] != CellMapType.Wall && map[y - 1, x - 1] != CellMapType.Water && map[y - 1, x - 1] != CellMapType.DestructiveWall &&
+                            map[y + 1, x - 1] != CellMapType.Wall && map[y + 1, x - 1] != CellMapType.Water && map[y + 1, x - 1] != CellMapType.DestructiveWall)
+                        {
+                            //создаю строку того типа, которого должно быть больше
+                            map[y, x] = symbol;
+                        }
                     }
                 }
             }
@@ -235,37 +169,31 @@ namespace TankCommon
         /// <param name="percentOfPrimObj">Для вычисления необходимого количества остальных объектов</param>
         /// <param name="percentAnotherObj">Сколько процентов площади должны занимать не преобладающие на карте объекты</param>
         /// <returns></returns>
-        private static char[,] DrawVerticals(char[,] map, int percentOfPrimObj, int percentAnotherObj, Random rnd)
+        private static CellMapType[,] DrawVerticals(CellMapType[,] map, int percentOfPrimObj, int percentAnotherObj, Random rnd)
         {
+            var wall = CellMapType.Wall;
+            var water = CellMapType.Water;
+            var dWall = CellMapType.DestructiveWall;
+            var field = CellMapType.Void;
+            var grass = CellMapType.Grass;
+
             int rndNum;
-            var arrSymbols = new char[] { ' ', 'т', '*', 'в'};
-            for (var x = 1; x < map.GetLength(0) - 1; x++)
+            var mapHeight = map.GetLength(0);
+            var mapWidth = map.GetLength(1);
+            var arrSymbols = new CellMapType[] { wall, water, grass, dWall, field};
+            for (var x = 2; x < mapWidth - 1; x++)
             {
                 rndNum = rnd.Next(0, 100);
-                var rndForObj = rnd.Next(0, 4);
-                for (var y = 1; y < map.GetLength(0) - 1; y++)
+                var rndForObj = rnd.Next(0, 5);
+                for (var y = 2; y < mapHeight - 1; y++)
                 {
                     if (rndNum < (percentOfPrimObj + percentAnotherObj) && rndNum > percentOfPrimObj)
                     {
-                        //Проверяю пересечения с линиями, а так же проверяю нет перекроет ли линия уже имеющийся проход
-                        if (map[y, x] != 'с' && map[y, x] != 'в' && map[y, x] != '*' &&
-                            map[y + 1, x] != 'с' && map[y + 1, x] != 'в' && map[y + 1, x] != '*' &&
-                            map[y, x + 1] != 'с' && map[y, x + 1] != 'в' && map[y, x + 1] != '*')
+                        map[y, x] = arrSymbols[rndForObj];
+
+                        if (y % 5 == 0)
                         {
-                            map[y, x] = arrSymbols[rndForObj];
-                        }
-                        else
-                        {
-                            //Удаляю 4 клетки возле пересечения, проверяя, что не удалю стену карты
-                            if (x + 1 != map.GetLength(0)-1 && y + 1 != map.GetLength(0)-1 && x-1 != 0 && y-1 != 0)
-                            {
-                                map[y, x] = ' ';
-                                map[y - 1, x] = ' ';
-                                map[y, x - 1] = ' ';
-                                map[y + 1, x] = ' ';
-                                x++;
-                                y++;
-                            }
+                            map[y, x] = field;
                         }
                     }
                 }
@@ -273,68 +201,5 @@ namespace TankCommon
             return map;
         }
 
-        /// <summary>
-        /// Проверяет не сплошная ли линия и стерает предпоследний в строке элемент, если сплошная
-        /// </summary>
-        /// <param name="map"></param>
-        /// <returns></returns>
-        private static char[,] CheckLineOnPass( char[,] map)
-        {
-            var mapLength = map.GetLength(0);
-            for (var y = 1; y < mapLength - 1; y++)
-            {
-                var counInLine = 0;
-                for (var x = 1; x < mapLength - 1; x++)
-                {
-                    if (map[x,y] == 'с' || map[x, y] == 'в' || map[x, y] == '*' )
-                    {
-                        counInLine++;
-                    }
-                }
-                if(counInLine >= mapLength - 2)
-                {
-                    map[mapLength - 2, y] = ' ';
-                }
-            }
-
-            for (var y = 1; y < mapLength - 1; y++)
-            {
-                var counInLine = 0;
-                for (var x = 1; x < mapLength - 1; x++)
-                {
-                    if (map[y, x] == 'с' || map[x, y] == 'в' || map[x, y] == '*')
-                    {
-                        counInLine++;
-                    }
-                }
-                if (counInLine >= mapLength - 2)
-                {
-                    map[y, mapLength - 2] = ' ';
-                }
-            }
-            return map;
-        }
-
-        /// <summary>
-        /// Переводит карту из массива чаров в массив стрингов. 
-        /// </summary>
-        /// <param name="charMap"></param>
-        /// <returns></returns>
-        private static string[] GetStringedArray(char[,] charMap)
-        {
-            var stringedMap = new string[charMap.GetLength(0)];
-            var sBuilder = new StringBuilder();
-            for (var x = 0; x < charMap.GetLength(0); x++)
-            {
-                for (var y = 0; y < charMap.GetLength(1); y++)
-                {
-                    sBuilder.Append(charMap[x, y]);
-                }
-                stringedMap[x] = sBuilder.ToString();
-                sBuilder.Remove(0, sBuilder.Length);
-            }
-            return stringedMap;
-        }
-    
     }
 }

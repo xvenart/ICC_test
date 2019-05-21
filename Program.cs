@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading;
 using TankCommon;
 using TankServer;
+using TankCommon.Enum;
 
 namespace ICC_Tank
 {
@@ -28,14 +29,13 @@ namespace ICC_Tank
 
         static void Main(string[] args)
         {
-            var map = MapManager.LoadMap(15,'с', 20, 50);
+            // 50 на 50 ... Идеальный баланс... эталон гармонии
+
+            var map = MapManager.LoadMap(30, 30, CellMapType.Wall, 20, 20);
             Console.WriteLine($"Сгенерирована карта");
 
             var port = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["port"], 2000);
             var maxBotsCount = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["maxBotsCount"], 1000);
-            var coreUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["coreUpdateMs"], 100);
-            var spectatorUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["spectatorUpdateMs"], 100);
-            var botUpdateMs = ParseOrDefault(System.Configuration.ConfigurationManager.AppSettings["botUpdateMs"], 250);
 
             var strHostName = Dns.GetHostName();
             var ipEntry = Dns.GetHostEntry(strHostName);
@@ -51,7 +51,7 @@ namespace ICC_Tank
             Console.WriteLine("Нажмите Escape для выхода");
 
             var tokenSource = new CancellationTokenSource();
-            var server = new Server(map, port, maxBotsCount, coreUpdateMs, spectatorUpdateMs, botUpdateMs);
+            var server = new Server(map, port, maxBotsCount, new TankSettings());
             var serverTask = server.Run(tokenSource.Token);
 
             try

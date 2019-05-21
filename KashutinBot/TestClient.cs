@@ -1,10 +1,7 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
 using TankCommon;
 using TankCommon.Enum;
 using TankCommon.Objects;
-using System.Reflection;
 
 namespace TankClient
 {
@@ -16,26 +13,9 @@ namespace TankClient
         private static int stepsBeforeOver = 0;
         private static  Script delegateScript = Stop;
         private static Rectangle lastRectangle;
-        public TankSettings settings;
 
         public ServerResponse Client(int msgCount, ServerRequest request)
         {
-            if (request.Settings != null)
-            {
-                settings = request.Settings;
-                try
-                {
-                    var docPath = Environment.CurrentDirectory;
-                    var SW = new StreamWriter(docPath + "/config/cfgClient.txt", false, System.Text.Encoding.Default);
-                    SW.Write(settings.GameSpeed + "\n" + settings.BulletSpeed + "\n" + settings.TankSpeed + "\n" + settings.TankDamage);
-                    SW.Close();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"{DateTime.Now.ToShortTimeString()} [СЕРВЕР]: {e.Message}");
-                }
-            }
-
             //Если карта существует присвоить локальной карте карту
             if (request.Map.Cells != null)
             {
