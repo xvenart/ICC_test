@@ -22,7 +22,7 @@ namespace TankServer
 
         protected readonly uint _maxBotsCount;
 
-        public static TankSettings Settings = new TankSettings();
+        public TankSettings Settings = new TankSettings();
         public string ConfigPath;
 
         public readonly Map Map;
@@ -251,9 +251,7 @@ namespace TankServer
                 Settings.ServerType != _fileSettings.ServerType ||
                 Settings.SessionTime != _fileSettings.SessionTime ||
                 Settings.GameSpeed != _fileSettings.GameSpeed ||
-                Settings.TankSpeed != _fileSettings.TankSpeed ||
-                Settings.TankDamage != _fileSettings.TankDamage ||
-                Settings.BulletSpeed != _fileSettings.BulletSpeed) ? true : false;
+                Settings.TankDamage != _fileSettings.TankDamage);
         }
 
         public void Dispose()
@@ -299,7 +297,7 @@ namespace TankServer
                 break;
             }
 
-            var tank = new TankObject(Guid.NewGuid(), rectangle, Settings.TankSpeed, false, 100, 100, nickname, tag, Settings.TankDamage);
+            var tank = new TankObject(Guid.NewGuid(), rectangle, Settings.TankSpeed, false, 100, 100, nickname, tag, Settings.TankDamage, true);
             Map.InteractObjects.Add(tank);
 
             return tank;
@@ -711,26 +709,29 @@ namespace TankServer
                                             objsToRemove.Add(bulletObject);
                                             canMove = false;
 
-                                            var hpToRemove = tankIntersectedObject.Hp > bulletObject.DamageHp
-                                                ? bulletObject.DamageHp
-                                                : tankIntersectedObject.Hp;
-                                            bool isFrag = false;
-                                            tankIntersectedObject.Hp -= hpToRemove;
-                                            if (tankIntersectedObject.Hp <= 0)
+                                            if (tankIntersectedObject.IsInvulnerable == false)
                                             {
-                                                isFrag = true;
-                                                objsToRemove.Add(tankIntersectedObject);
-                                            }
-
-                                            var sourceTank = Map.InteractObjects.OfType<TankObject>()
-                                                .FirstOrDefault(t => t.Id == bulletObject.SourceId);
-                                            if (sourceTank != null)
-                                            {
-                                                sourceTank.Score += hpToRemove;
-                                                if (isFrag)
+                                                var hpToRemove = tankIntersectedObject.Hp > bulletObject.DamageHp
+                                                    ? bulletObject.DamageHp
+                                                    : tankIntersectedObject.Hp;
+                                                bool isFrag = false;
+                                                tankIntersectedObject.Hp -= hpToRemove;
+                                                if (tankIntersectedObject.Hp <= 0)
                                                 {
-                                                    sourceTank.Score += 50;
-                                                    _logger.Info($"{tankIntersectedObject.Nickname} was killed by {sourceTank.Nickname}");
+                                                    isFrag = true;
+                                                    objsToRemove.Add(tankIntersectedObject);
+                                                }
+
+                                                var sourceTank = Map.InteractObjects.OfType<TankObject>()
+                                                    .FirstOrDefault(t => t.Id == bulletObject.SourceId);
+                                                if (sourceTank != null)
+                                                {
+                                                    sourceTank.Score += hpToRemove;
+                                                    if (isFrag)
+                                                    {
+                                                        sourceTank.Score += 50;
+                                                        _logger.Info($"{tankIntersectedObject.Nickname} was killed by {sourceTank.Nickname}");
+                                                    }
                                                 }
                                             }
                                         }
@@ -742,14 +743,17 @@ namespace TankServer
                                     }
                                     else if (movingObject is TankObject tankObject)
                                     {
-                                        if (cells.Any(c => c.Value == CellMapType.DestructiveWall || c.Value == CellMapType.Wall))
+                                        if (tankObject.IsInvulnerable == false)
                                         {
-                                            canMove = false;
-                                        }
-                                        else if ((decimal) cells.Count(c => c.Value == CellMapType.Water) / cells.Count >= 0.5m)
-                                        {
-                                            objsToRemove.Add(tankObject);
-                                            canMove = false;
+                                            if (cells.Any(c => c.Value == CellMapType.DestructiveWall || c.Value == CellMapType.Wall))
+                                            {
+                                                canMove = false;
+                                            }
+                                            else if ((decimal)cells.Count(c => c.Value == CellMapType.Water) / cells.Count >= 0.5m)
+                                            {
+                                                objsToRemove.Add(tankObject);
+                                                canMove = false;
+                                            }
                                         }
 
                                         //если скорость танка была изменена в настройках игры, устанавливаем новое значение

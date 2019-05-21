@@ -72,6 +72,7 @@
     <Compile Include="Objects\HealthObject.cs" />
     <Compile Include="Objects\DamageUpgradeObject.cs" />
     <Compile Include="Objects\HealthUpgradeObject.cs" />
+    <Compile Include="Objects\InvulnerabilityUpgradeObject.cs" />
     <Compile Include="Objects\Map.cs" />
     <Compile Include="Objects\MaxHpUpgradeObject.cs" />
     <Compile Include="Objects\Point.cs" />

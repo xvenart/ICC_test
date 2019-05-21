@@ -8,6 +8,7 @@ namespace TankCommon.Objects
         BulletSpeed,
         Damage,
         Speed,
-        MaxHp
+        MaxHp,
+        Invulnerability
     }
 }
