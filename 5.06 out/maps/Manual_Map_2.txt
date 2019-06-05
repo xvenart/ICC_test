@@ -1,0 +1,42 @@
+﻿cccccccccccccccccccccccccccccccccccccccc
+c                                      c
+c                                      c
+c   в            в                     c
+c    в          в                      c
+c     в        в                       c
+c   д  вттттттв  д                     c
+c   д  тт     тт д                     c
+c     тттттттттт    д                  c
+c   д  тт     тт д                     c
+c   д   ттттттв  д                     c
+c      вв     вв              д        c
+c     вв       вв            д         c
+c    вв         вв          д      д   c
+c                          д       д   c
+c             дд          д        д   c
+c            дд          д         д   c
+c     дддд   дд         д          д   c
+c     д      дд        д          дддд c
+c     д     дд        д                c
+c                     д       дддддд   c
+сдддддддд    ддддд    д      дд        c
+c           дд    д   д    дд          c
+c          дд      д     дддд          c
+c                  дд   дд             c
+c        дд        дд  дд              c
+c         д                            c
+c          д                           c
+c                                      c
+c                                      c
+c                                      c
+c              ввввввввввввввввввввв   c
+c                  д                   c
+c                                      c
+c                                      c
+cввввввввввввввввввттттт               c
+cтттттттттттттттттттттттт              c
+c                    тттт              c
+c                                      c
+c                                      c
+c                                      c
+cccccccccccccccccccccccccccccccccccccccc

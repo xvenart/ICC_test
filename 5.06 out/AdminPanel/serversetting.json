@@ -1,0 +1,5 @@
+{
+  "ServerTickRate": 30,
+  "PlayerTickRate": 250,
+  "SpectatorTickRate": 50
+}

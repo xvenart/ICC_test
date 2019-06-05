@@ -1,0 +1,153 @@
+﻿@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+app {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#ServerId, #AddServer {
+    margin: 5px;
+    margin-left: 20px;
+}
+
+#app {
+    margin-bottom: 65px;
+    margin-top: 50px;
+}
+
+#errorMessage {
+    padding: 10px;
+    background: #ff0000bb;
+    border-radius: 25px;
+    margin: 20px;
+    text-align: center;
+    font-weight: 600;
+    color: white;
+}
+
+#logo {
+    height: 60px;
+}
+
+#client {
+    color: #fff;
+    background-color: #76CDD8;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    height: 100px;
+}
+
+#links a {
+    width: 23%;
+    margin: 1%;
+}
+
+#observer {
+    color: #fff;
+    width: 23%;
+    background-color: #76CDD8;
+    padding: 20px;
+    border-radius: 8px;
+    margin: auto;
+    display: flex;
+    height: 100px;
+}
+
+    #observer p, #client p {
+        line-height: 60px;
+        text-align: center;
+        width: -webkit-fill-available;
+        font-weight: 600;
+    }
+
+    #observer:hover, #client:hover {
+        background: #ffc000;
+    }
+
+        a:hover {
+            text-decoration: none;
+        }
+
+        #links {
+            display: inline-flex;
+            width: 100%;
+        }
+
+.bottom {
+    margin-top: 15px;
+    position: fixed;
+    text-align: center;
+    bottom: 0;
+    width: 100%;
+    height: 50px;
+    background: #231F20;
+    color: #fff;
+    line-height: 50px;
+    font-family: "Source Sans Pro", "Hiragino Sans GB", "Microsoft JhengHei", arial, helvetica, sans-serif;
+    font-size: smaller;
+}
+
+.header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 50px;
+    background: #231F20;
+    display: flex;
+}
+
+    .header p {
+        width: -webkit-fill-available;
+        text-align: center;
+        color: #fff;
+        line-height: 50px;
+        font-family: "Source Sans Pro", "Hiragino Sans GB", "Microsoft JhengHei", arial, helvetica, sans-serif;
+        font-size: large;
+        font-weight: 600;
+    }
+
+.header img {
+    height: 30px;
+    margin: 10px;
+    margin-left: 20px;
+}
+
+#modal {
+    height: 600px;
+    overflow-x: auto;
+}
+
+#modal div {
+    margin-top: 5px;
+}
+
+    #modal div label {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    #modal div label, #modal div input, #modal div select {
+        width: 48%;
+        margin-right: 1%;
+        margin-left: 1%;
+    }
+
+    #modal div input, #modal div select {
+        height: 30px;
+    }
+
+    #modal div input {
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #495057;
+        padding: 0 .5rem 0 .5rem;
+        border: 1px solid #ced4da;
+        border-radius: .25rem;
+    }
